@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Master Billing Report</title>
+<!-- v1774390298 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0D1B2A;--bg2:#112240;--bg3:#1a2f4a;--bg4:#1F3864;
+    --accent:#2E75B6;--accent2:#00B4D8;--green:#1D9E75;--red:#E24B4A;--amber:#BA7517;
+    --text:#E8F0FE;--text2:#9BB5D4;--text3:#5a7a9a;
+    --border:rgba(46,117,182,0.2);--border2:rgba(46,117,182,0.4);
+  }
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;font-size:13px}
+  .topbar{background:var(--bg4);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border2);flex-wrap:wrap;gap:8px}
+  .topbar-left{display:flex;align-items:center;gap:12px}
+  .logo{width:32px;height:32px;background:var(--accent2);border-radius:6px;display:flex;align-items:center;justify-content:center}
+  .logo svg{width:18px;height:18px;fill:#0D1B2A}
+  .title{font-size:16px;font-weight:600;color:#fff}
+  .subtitle{font-size:11px;color:var(--text2);margin-top:1px}
+  .topbar-right{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+  .last-date{font-size:11px;color:var(--text2);text-align:right}
+  .last-date strong{display:block;font-size:13px;color:var(--text);font-family:'IBM Plex Mono',monospace}
+  .status{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2)}
+  .status-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+  .status-dot.loading{background:var(--amber);animation:pulse 1s infinite}
+  .status-dot.error{background:var(--red)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+  .filters-bar{background:var(--bg2);padding:14px 24px;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+  .filter-group{display:flex;flex-direction:column;gap:4px;min-width:130px;flex:1}
+  .filter-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;font-weight:500}
+  select{background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;width:100%;cursor:pointer;outline:none;transition:border 0.2s}
+  select:hover,select:focus{border-color:var(--accent)}
+  input[type=date]{background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;width:100%;outline:none;transition:border 0.2s}
+  input[type=date]:hover,input[type=date]:focus{border-color:var(--accent)}
+  .date-range-group{display:flex;flex-direction:column;gap:4px;flex:2;min-width:260px}
+  .presets{display:flex;flex-wrap:wrap;gap:4px}
+  .preset{background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 11px;border-radius:5px;font-size:11px;cursor:pointer;transition:all 0.15s;white-space:nowrap}
+  .preset:hover{border-color:var(--accent);color:var(--accent2)}
+  .preset.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .custom-dates{display:none;gap:6px;align-items:center;margin-top:6px}
+  .custom-dates.show{display:flex}
+  .custom-dates input{flex:1}
+  .date-sep{color:var(--text3);font-size:11px;flex-shrink:0}
+  .btn-reset{background:transparent;border:1px solid var(--border2);color:var(--text2);padding:7px 16px;border-radius:6px;font-size:12px;cursor:pointer;transition:all 0.2s;white-space:nowrap;align-self:flex-end}
+  .btn-reset:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .content{padding:20px 24px;display:flex;flex-direction:column;gap:16px}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+  .metric{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px;position:relative;overflow:hidden}
+  .metric::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+  .metric.m-blue::before{background:var(--accent2)}
+  .metric.m-green::before{background:var(--green)}
+  .metric.m-amber::before{background:var(--amber)}
+  .metric-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;font-weight:500;margin-bottom:8px}
+  .metric-value{font-size:26px;font-weight:600;color:#fff;font-family:'IBM Plex Mono',monospace;letter-spacing:-0.5px}
+  .metric-sub{font-size:10px;color:var(--text3);margin-top:4px}
+  .tabs{display:flex;gap:4px;margin-bottom:14px;background:var(--bg3);padding:3px;border-radius:8px;width:fit-content;flex-wrap:wrap}
+  .tab{padding:5px 14px;border-radius:6px;font-size:11px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--text2);transition:all 0.2s}
+  .tab.active{background:var(--accent);color:#fff}
+  .card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:16px}
+  .card-title{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.6px;font-weight:500;margin-bottom:12px}
+  .legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+  .leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2)}
+  .leg-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+  .table-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .table-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+  .table-title{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.6px;font-weight:500}
+  .table-info{font-size:11px;color:var(--text3)}
+  .table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  thead th{padding:10px 14px;text-align:left;font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border);white-space:nowrap;background:var(--bg3)}
+  tbody td{padding:9px 14px;border-bottom:1px solid var(--border);color:var(--text);white-space:nowrap;font-size:12px}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover td{background:var(--bg3)}
+  .num{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:11px}
+  .dv{color:var(--text3)}
+  .badge{display:inline-block;padding:1px 7px;border-radius:3px;font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace;background:rgba(46,117,182,0.2);color:var(--accent2)}
+  .pagination{padding:12px 16px;display:flex;align-items:center;gap:10px;border-top:1px solid var(--border)}
+  .pag-btn{background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:5px 12px;border-radius:5px;font-size:11px;cursor:pointer;transition:all 0.2s}
+  .pag-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .pag-btn:disabled{opacity:0.3;cursor:not-allowed}
+  .pag-info{font-size:11px;color:var(--text3);flex:1;text-align:center}
+  .state-msg{text-align:center;padding:3rem;color:var(--text2);font-size:13px}
+  .err{color:var(--red)}
+  .spinner{display:inline-block;width:20px;height:20px;border:2px solid var(--border2);border-top-color:var(--accent2);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:12px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .info-banner{background:rgba(46,117,182,0.08);border:1px solid rgba(46,117,182,0.25);border-radius:8px;padding:10px 16px;font-size:11px;color:var(--text2);display:none;align-items:center;gap:8px}
+  .info-banner.show{display:flex}
+
+  /* ── PIVOT TABLE ── */
+  .pivot-table{width:100%;border-collapse:collapse;font-size:11px}
+  .pivot-table th{
+    padding:8px 12px;
+    background:var(--bg3);
+    color:var(--text3);
+    font-size:9px;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+    border-bottom:1px solid var(--border);
+    white-space:nowrap;
+    text-align:right;
+  }
+  .pivot-table th:first-child{text-align:left;position:sticky;left:0;z-index:2;background:var(--bg3)}
+  .pivot-table td{
+    padding:7px 12px;
+    border-bottom:1px solid #151a27;
+    color:var(--text);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    text-align:right;
+    white-space:nowrap;
+  }
+  .pivot-table td:first-child{
+    text-align:left;
+    color:var(--text2);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px;
+    position:sticky;
+    left:0;
+    background:var(--bg2);
+    z-index:1;
+    border-right:1px solid var(--border);
+  }
+  .pivot-table tr:hover td{background:var(--bg3)}
+  .pivot-table tr:hover td:first-child{background:var(--bg3)}
+  .pivot-table .total-row td{
+    background:var(--bg3);
+    color:var(--accent2);
+    font-weight:600;
+    border-top:1px solid var(--border2);
+  }
+  .pivot-table .total-row td:first-child{background:var(--bg3)}
+  .pivot-zero{color:var(--text3) !important}
+  /* Eye toggle for pivot columns */
+  .col-toggle-bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+  .col-toggle-btn{display:flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:5px;color:var(--text2);padding:3px 9px;font-size:10px;cursor:pointer;transition:all 0.15s;white-space:nowrap}
+  .col-toggle-btn.hidden{opacity:1 !important;border:1px solid var(--accent2) !important;color:var(--text3) !important;background:var(--bg2) !important;text-decoration:line-through}
+  .col-toggle-btn:hover{border-color:var(--accent);color:var(--accent2)}
+
+  /* ── MOBILE FILTERS TOGGLE ── */
+  .filters-toggle{display:none;width:100%;padding:12px 20px;background:var(--bg2);border:none;border-bottom:1px solid var(--border);color:var(--text2);font-family:'Inter',sans-serif;font-size:13px;font-weight:500;cursor:pointer;text-align:left;gap:8px;align-items:center}
+  .filters-toggle svg{width:16px;height:16px;fill:none;stroke:var(--accent2);stroke-width:2;flex-shrink:0;transition:transform 0.2s}
+  .filters-toggle.open svg{transform:rotate(180deg)}
+  .filters-active-badge{background:var(--accent);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:600;margin-left:auto}
+
+  /* ── RESPONSIVE ── */
+  @media(max-width:768px){
+    .topbar{padding:10px 16px}
+    .title{font-size:14px}
+    .last-date{display:none}
+    .filters-toggle{display:flex}
+    .filters-bar{padding:12px 16px;display:none;flex-direction:column;gap:10px}
+    .filters-bar.mobile-open{display:flex}
+    .filter-group{min-width:unset;flex:unset;width:100%}
+    .date-range-group{min-width:unset;width:100%}
+    .presets{gap:6px}
+    .preset{padding:8px 12px;font-size:12px;flex:1;text-align:center}
+    .btn-reset{width:100%;text-align:center;padding:10px}
+    .content{padding:12px 16px;gap:12px}
+    .metrics{grid-template-columns:1fr 1fr;gap:10px}
+    .metric{padding:14px}
+    .metric-value{font-size:22px}
+    .tabs{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap}
+    .tab{white-space:nowrap;padding:6px 12px}
+    .card{padding:12px}
+    #cWrap canvas{max-height:220px}
+    .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    table{min-width:520px}
+    thead th{padding:8px 10px;font-size:9px}
+    tbody td{padding:8px 10px;font-size:11px}
+    .pagination{padding:10px 12px;gap:6px}
+    .pag-info{font-size:10px}
+  }
+  @media(max-width:400px){
+    .metrics{grid-template-columns:1fr}
+    .metric-value{font-size:26px}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo"><svg viewBox="0 0 24 24"><path d="M3 3h18v4H3zm0 6h18v4H3zm0 6h18v4H3z"/></svg></div>
+    <div>
+      <div class="title">Master Billing Report</div>
+      <div class="subtitle" id="subtitle">Live data</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="last-date" id="lastDateBox" style="display:none">
+      Last data point<strong id="lastDateVal">—</strong>
+    </div>
+    <div class="status">
+      <div class="status-dot loading" id="sDot"></div>
+      <span id="sTxt">Loading...</span>
+    </div>
+  </div>
+</div>
+
+<button class="filters-toggle" id="filtersToggle" onclick="toggleFilters()">
+  <svg viewBox="0 0 24 24"><path d="M3 6h18M7 12h10M11 18h2"/></svg>
+  Filters
+  <span class="filters-active-badge" id="filtersActiveBadge" style="display:none">Active</span>
+  <svg viewBox="0 0 24 24" style="margin-left:auto"><path d="M6 9l6 6 6-6"/></svg>
+</button>
+
+<div class="filters-bar" id="filtersBar">
+  <div class="filter-group">
+    <div class="filter-label">Country</div>
+    <select id="fCountry"><option value="">All countries</option></select>
+  </div>
+  <div class="filter-group">
+    <div class="filter-label">Aggregator</div>
+    <select id="fAggregator"><option value="">All aggregators</option></select>
+  </div>
+  <div class="filter-group">
+    <div class="filter-label">Operator</div>
+    <select id="fOperator"><option value="">All operators</option></select>
+  </div>
+  <div class="filter-group">
+    <div class="filter-label">Service</div>
+    <select id="fService"><option value="">All services</option></select>
+  </div>
+  <div class="filter-group">
+    <div class="filter-label">Sub-service</div>
+    <select id="fSubService"><option value="">All sub-services</option></select>
+  </div>
+  <div class="date-range-group">
+    <div class="filter-label">Date range</div>
+    <div class="presets">
+      <button class="preset" onclick="setPreset('today',this)">Today</button>
+      <button class="preset" onclick="setPreset('yesterday',this)">Yesterday</button>
+      <button class="preset" onclick="setPreset('7d',this)">Last 7 days</button>
+      <button class="preset" onclick="setPreset('30d',this)">Last 30 days</button>
+      <button class="preset" onclick="setPreset('thismonth',this)">This month</button>
+      <button class="preset" onclick="setPreset('lastmonth',this)">Last month</button>
+      <button class="preset" onclick="setPreset('custom',this)">Custom</button>
+    </div>
+    <div class="custom-dates" id="customDates">
+      <input type="date" id="fDF" onchange="onCustomDate()">
+      <span class="date-sep">to</span>
+      <input type="date" id="fDT" onchange="onCustomDate()">
+    </div>
+  </div>
+  <button class="btn-reset" onclick="resetAll()">Reset all</button>
+</div>
+
+<div class="content">
+  <div class="info-banner" id="infoBanner">ℹ️ <span id="infoBannerText"></span></div>
+
+  <div class="metrics">
+    <div class="metric m-blue">
+      <div class="metric-label">Subscribers / Signups</div>
+      <div class="metric-value" id="mS">—</div>
+      <div class="metric-sub" id="mSs"></div>
+    </div>
+    <div class="metric m-green">
+      <div class="metric-label">Total Billings</div>
+      <div class="metric-value" id="mB">—</div>
+      <div class="metric-sub">cumulative total</div>
+    </div>
+    <div class="metric m-amber">
+      <div class="metric-label">Active Subscribers</div>
+      <div class="metric-value" id="mA">—</div>
+      <div class="metric-sub">Latest value in period</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="tabs">
+      <button class="tab active" onclick="setTab('bar',this)">Billings by service</button>
+      <button class="tab" onclick="setTab('signup',this)">Signups by service</button>
+      <button class="tab" onclick="setTab('trend',this)">Daily trend</button>
+      <button class="tab" onclick="setTab('donut',this)">Active subs</button>
+      <button class="tab" onclick="setTab('pivot_signups',this)">Signups table</button>
+      <button class="tab" onclick="setTab('pivot_billings',this)">Billings table</button>
+    </div>
+    <div class="card">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span id="cTitle">Total billings by service</span>
+        <div style="display:none;gap:6px;align-items:center" id="pivotExportBtns">
+          <button onclick="exportPivot('csv')" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:5px 12px;border-radius:5px;font-size:11px;cursor:pointer">↓ CSV</button>
+          <button onclick="exportPivot('xls')" style="background:var(--bg3);border:1px solid var(--border2);color:var(--accent2);padding:5px 12px;border-radius:5px;font-size:11px;cursor:pointer">↓ Excel</button>
+        </div>
+      </div>
+      <div class="legend" id="cLegend"></div>
+      <!-- Toggle bar lives here — OUTSIDE pivotWrap so it never gets regenerated -->
+      <div class="col-toggle-bar" id="pivotToggleBar" style="display:none"></div>
+      <div style="position:relative;width:100%" id="cWrap"><canvas id="cChart"></canvas></div>
+      <div id="pivotWrap" style="display:none;overflow-x:auto"></div>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <div class="table-header">
+      <div class="table-title">Data table</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="table-info" id="tInfo">—</div>
+        <button onclick="exportDataTable('csv')" style="background:var(--bg3);border:1px solid var(--border2);color:var(--text2);padding:4px 10px;border-radius:5px;font-size:11px;cursor:pointer">↓ CSV</button>
+        <button onclick="exportDataTable('xlsx')" style="background:var(--bg3);border:1px solid var(--border2);color:var(--accent2);padding:4px 10px;border-radius:5px;font-size:11px;cursor:pointer">↓ Excel</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr id="tHead">
+          <th onclick="sortBy('date')" style="cursor:pointer">Date <span id="sort_date">↕</span></th>
+          <th onclick="sortBy('country')" style="cursor:pointer">Country <span id="sort_country">↕</span></th>
+          <th onclick="sortBy('aggregator')" style="cursor:pointer">Aggregator <span id="sort_aggregator">↕</span></th>
+          <th onclick="sortBy('operator')" style="cursor:pointer">Operator <span id="sort_operator">↕</span></th>
+          <th onclick="sortBy('service')" style="cursor:pointer">Service <span id="sort_service">↕</span></th>
+          <th onclick="sortBy('subService')" style="cursor:pointer">Sub-service <span id="sort_subService">↕</span></th>
+          <th class="num" onclick="sortBy('signups')" style="cursor:pointer">Subscribers <span id="sort_signups">↕</span></th>
+          <th class="num" onclick="sortBy('billings')" style="cursor:pointer">Billings <span id="sort_billings">↕</span></th>
+          <th class="num" onclick="sortBy('active')" style="cursor:pointer">Active Subs <span id="sort_active">↕</span></th>
+        </tr></thead>
+        <tbody id="tBody">
+          <tr><td colspan="8" class="state-msg"><div class="spinner"></div><br>Connecting...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <button class="pag-btn" id="bPrev" onclick="prevPage()" disabled>&#8592; Prev</button>
+      <div class="pag-info" id="pInfo">—</div>
+      <button class="pag-btn" id="bNext" onclick="nextPage()" disabled>Next &#8594;</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const API = "https://script.google.com/macros/s/AKfycbyJqnrqu2l76UztdiHbNQu7S2mlQseWQWZsfCq7ZYJsSKvNlcAgZNWvbxYKyftSQmDY/exec";
+const CLR = ["#00B4D8","#1D9E75","#7F77DD","#E24B4A","#BA7517","#D4537E","#639922","#2E75B6","#D85A30","#0F6E56","#854F0B","#378ADD"];
+const PS  = 100;
+
+// ═══════════════════════════════════════════════════════════════
+// MAPPING TABLE
+// Translates DETALLE_DIARIO fields → dashboard display fields
+// Structure: { market_id: { aggregator, operator, serviceMap } }
+// serviceMap: { sub_service_value → display_service_name }
+// TOTAL rows are kept for Active Subs only, never shown as a service
+// ═══════════════════════════════════════════════════════════════
+const MARKET_MAP = {
+  // ── NEW ZEALAND ──
+  "NZ": {
+    country:     "New Zealand",
+    countryCode: "NZ",
+    aggregator:  "Connexus",
+    operator:    "Default Service",
+    serviceMap: {
+      "8995":  "8995",
+      "371":   "371",
+      "5171":  "5171",
+      "TOTAL": "__TOTAL__"
+    }
+  },
+  // ── CHILE ENTEL ──
+  "CL_ENTEL": {
+    country:     "Chile",
+    countryCode: "CL",
+    aggregator:  "MZZO",
+    operator:    "Entel",
+    // Sub-service names use "Service|SubService" format in DETALLE_DIARIO
+    // serviceMap maps to the Service level, subServiceMap maps to Sub-service level
+    serviceMap: {
+      "Adult|Prepaid 990":    "Adult Video",
+      "Adult|Prepaid 1.200":  "Adult Video",
+      "Adult|Postpaid 990":   "Adult Video",
+      "Adult|Postpaid 4.990": "Adult Video",
+      "Games|Prepaid 990":    "Games",
+      "Games|Prepaid 1.200":  "Games",
+      "Games|Postpaid 990":   "Games",
+      "Games|Postpaid 4.990": "Games",
+      "BF|Postpaid 1.200":    "Bondi Fit (BF)",
+      "BF|Postpaid 4.990":    "Bondi Fit (BF)",
+      "TOTAL":                "__TOTAL__"
+    },
+    subServiceMap: {
+      "Adult|Prepaid 990":    "Prepaid 990",
+      "Adult|Prepaid 1.200":  "Prepaid 1.200",
+      "Adult|Postpaid 990":   "Postpaid 990",
+      "Adult|Postpaid 4.990": "Postpaid 4.990",
+      "Games|Prepaid 990":    "Prepaid 990",
+      "Games|Prepaid 1.200":  "Prepaid 1.200",
+      "Games|Postpaid 990":   "Postpaid 990",
+      "Games|Postpaid 4.990": "Postpaid 4.990",
+      "BF|Postpaid 1.200":    "Postpaid 1.200",
+      "BF|Postpaid 4.990":    "Postpaid 4.990",
+      "TOTAL":                "__TOTAL__"
+    }
+  },
+  // ── CHILE WOM ──
+  "CL_WOM": {
+    country:     "Chile",
+    countryCode: "CL",
+    aggregator:  "Opratel",
+    operator:    "WOM",
+    serviceMap: {
+      "iJ":  "iJuegos",
+      "F4T": "Trivia",
+    }
+  },
+  // ── BOLIVIA ──
+  "BO_VIVA": {
+    country:     "Bolivia",
+    countryCode: "BO",
+    aggregator:  "Mobiera",
+    operator:    "VIVA",
+    serviceMap: {
+      "MCIP": "Juegos Ilimitados"
+    }
+  },
+  // ── IRAQ ZAIN MEDIA WORLD ──
+  "IQ_ZAIN_MW": {
+    country:     "Iraq",
+    countryCode: "IQ",
+    aggregator:  "Media World",
+    operator:    "Zain",
+    serviceMap: {
+      "MW": "Games Unlimited"
+    }
+  },
+  // ── IRAQ ZAIN MOBIMIND ──
+  "IQ_ZAIN_MM": {
+    country:     "Iraq",
+    countryCode: "IQ",
+    aggregator:  "Mobimind",
+    operatorMap: {
+      "Asiacell": "Asiacell",
+      "Zain":     "Zain",
+      "Korek":    "Korek",
+      "TOTAL":    "__ALL__"
+    },
+    serviceMap: {
+      "Asiacell": "Super Games",
+      "Zain":     "Super Games",
+      "Korek":    "Super Games",
+      "TOTAL":    "__TOTAL__"
+    }
+  },
+  // ── KSA ──
+  "KSA_MOBI": {
+    country:        "KSA",
+    countryCode:    "KSA",
+    aggregator:     "Mobimind",
+    defaultService: "Games Unlimited",
+    operatorMap: {
+      "STC":    "STC",
+      "Mobily": "Mobily",
+      "Zain":   "Zain",
+      "TOTAL":  "__ALL__"
+    },
+    serviceMap: {
+      "STC":    "Games Unlimited",
+      "Mobily": "Games Unlimited",
+      "Zain":   "Games Unlimited",
+      "TOTAL":  "__TOTAL__"
+    }
+  },
+  // ── KUWAIT ──
+  "KW_MOBI": {
+    country:        "Kuwait",
+    countryCode:    "KW",
+    aggregator:     "Mobimind",
+    defaultService: "Super Games",
+    operatorMap: {
+      "Zain":  "Zain",
+      "STC":   "STC",
+      "TOTAL": "__ALL__"
+    },
+    serviceMap: {
+      "Zain":  "Super Games",
+      "STC":   "Super Games",
+      "TOTAL": "__TOTAL__"
+    }
+  },
+  // ── OMAN ──
+  "OM_MOBI": {
+    country:        "Oman",
+    countryCode:    "OM",
+    aggregator:     "Mobimind",
+    operatorMap: {
+      "OmanTel Daily":  "OmanTel",
+      "OmanTel Weekly": "OmanTel",
+      "Ooredoo Weekly": "Ooredoo",
+      "TOTAL":          "__ALL__"
+    },
+    serviceMap: {
+      "OmanTel Daily":  "Mazamob Daily",
+      "OmanTel Weekly": "Mazamob Weekly",
+      "Ooredoo Weekly": "Mazamob",
+      "TOTAL":          "__TOTAL__"
+    },
+    defaultService: "Mazamob"
+  },
+  // ── COSTA RICA ──
+  "CR_KOLBI": {
+    country:     "Costa Rica",
+    countryCode: "CR",
+    aggregator:  "Silver Solutions",
+    operator:    "Kolbi",
+    serviceMap: {
+      "MCIP": "Juegos Ilimitados"
+    }
+  },
+  // ── SERBIA ──
+  "RS_2024": {
+    country:     "Serbia",
+    countryCode: "RS",
+    aggregator:  "NTH",
+    operator:    "All",
+    serviceMap: {
+      "Video":        "Games Unlimited",
+      "Intelligence": "Intelligence",
+      "TOTAL":        "__TOTAL__"
+    }
+  },
+  // ── MEXICO ──
+  "MX_TELCEL": {
+    country:     "Mexico",
+    countryCode: "MX",
+    aggregator:  "KPLAY",
+    operator:    "Telcel",
+    serviceMap: {
+      "IPLAY": "IPLAY",
+      "SEXY":  "SEXY",
+      "TOTAL": "__TOTAL__"
+    }
+  }
+};
+
+let DATA=[], filtered=[], tab='bar', pg=0, chart=null, preset=null, cFrom=null, cTo=null;
+let sortCol='date', sortDir='desc';
+const hiddenColsGlobal = new Set();
+let pivotSvcKeys = [];
+let pivotSvcLabels = [];
+
+function pivotUpdateButtons(){
+  const bar = document.getElementById('pivotToggleBar');
+  if(!bar) return;
+  bar.innerHTML = '';
+  pivotSvcKeys.forEach((k,i)=>{
+    const isHidden = hiddenColsGlobal.has(k);
+    const btn = document.createElement('button');
+    btn.style.cssText = 'background:#1a2f4a;border:1px solid #2E75B6;color:#9BB5D4;padding:3px 9px;border-radius:5px;font-size:10px;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap';
+    btn.style.opacity = isHidden ? '0.6' : '1';
+    btn.style.textDecoration = isHidden ? 'line-through' : 'none';
+    btn.textContent = (isHidden ? '🙈 ' : '👁 ') + pivotSvcLabels[i];
+    btn.onclick = function(){
+      if(hiddenColsGlobal.has(k)) hiddenColsGlobal.delete(k);
+      else hiddenColsGlobal.add(k);
+      pivotUpdateStyles();
+      pivotUpdateButtons();
+    };
+    bar.appendChild(btn);
+  });
+}
+
+function pivotUpdateStyles(){
+  let styleEl = document.getElementById('pivotColStyle');
+  if(!styleEl){ styleEl=document.createElement('style'); styleEl.id='pivotColStyle'; document.head.appendChild(styleEl); }
+  let css='';
+  hiddenColsGlobal.forEach(k=>{ css+=`[data-col="${CSS.escape(k)}"]{display:none!important;}`; });
+  styleEl.textContent=css;
+}
+
+// ── HELPERS ──────────────────────────────────────────────────
+const fmt  = n => { if(n===null||n===undefined||n==='')return'—'; const v=Number(n); if(isNaN(v))return'—'; if(v>=1e6)return(v/1e6).toFixed(2)+'M'; if(v>=1e3)return(v/1e3).toFixed(1)+'K'; return Math.round(v).toLocaleString(); };
+// fd: always DD/MM/YY — never use toLocaleDateString (browser-dependent format)
+const fd   = d => { if(!d) return ''; const dd=String(d.getDate()).padStart(2,'0'); const mm=String(d.getMonth()+1).padStart(2,'0'); const yy=String(d.getFullYear()).slice(-2); return `${dd}/${mm}/${yy}`; };
+const fiso = d => d ? d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0') : '';
+const uniq = a => [...new Set(a)].filter(v=>v!==null&&v!==undefined&&String(v).trim()!=='').sort((a,b)=>String(a).localeCompare(String(b)));
+const sod  = d => { const r=new Date(d); r.setHours(0,0,0,0); return r; };
+const eod  = d => { const r=new Date(d); r.setHours(23,59,59,999); return r; };
+const toN  = v => { if(v===''||v===null||v===undefined)return null; const x=Number(v); return isNaN(x)?null:x; };
+const isTotal = r => r.service === '__TOTAL__';
+
+// ── DATE PARSER ───────────────────────────────────────────────
+function pd(raw) {
+  if(raw===null||raw===undefined||raw==='') return null;
+  if(raw instanceof Date) { if(isNaN(raw))return null; return new Date(raw.getFullYear(),raw.getMonth(),raw.getDate()); }
+  if(typeof raw==='number') {
+    if(raw<1) return null;
+    // Google Sheets serial: days since Dec 30 1899
+    const d = new Date(1899,11,30);
+    d.setDate(d.getDate() + Math.floor(raw));
+    if(isNaN(d.getTime())) return null;
+    return new Date(d.getFullYear(),d.getMonth(),d.getDate());
+  }
+  const s=String(raw).trim();
+  if(!s||s.includes('1899')||s==='30/12/99') return null;
+  let m;
+  // ISO with time: 2026-03-04T03:00:00.000Z — use UTC parts to avoid timezone shift
+  m=s.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+  if(m) return new Date(+m[1],+m[2]-1,+m[3]);
+  // ISO date only: 2026-03-04
+  m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m) return new Date(+m[1],+m[2]-1,+m[3]);
+  // DD/MM/YY
+  m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
+  if(m){const yy=+m[3];return new Date(yy<50?2000+yy:1900+yy,+m[2]-1,+m[1]);}
+  // DD/MM/YYYY
+  m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m) return new Date(+m[3],+m[2]-1,+m[1]);
+  // Pure number as string (serial)
+  if(/^\d+(\.\d+)?$/.test(s)){
+    const n=parseFloat(s);
+    if(n<1) return null;
+    const d=new Date(1899,11,30);
+    d.setDate(d.getDate()+Math.floor(n));
+    return new Date(d.getFullYear(),d.getMonth(),d.getDate());
+  }
+  return null;
+}
+
+// ── LOAD & MAP DATA ───────────────────────────────────────────
+async function loadData() {
+  try {
+    const res = await fetch(API + '?v=' + Date.now());
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const raw = await res.json();
+    if(!Array.isArray(raw)||raw.length<2) throw new Error('Unexpected API format');
+
+    const headers = raw[0].map(h=>String(h).trim().toLowerCase());
+    const hi = {
+      date:     headers.indexOf('date'),
+      country:  headers.indexOf('country'),
+      market:   headers.indexOf('market_id'),
+      service:  headers.indexOf('service'),        // e.g. "Dialogue"
+      sub:      headers.findIndex(h=>h==='sub-service'||h==='sub_service'), // e.g. "8995"
+      signups:  headers.indexOf('signups'),
+      billings: headers.indexOf('billings'),
+      active:   headers.findIndex(h=>h==='active_subs'||h==='active subs'),
+    };
+
+    const g = (row,idx) => (idx>=0&&idx<row.length) ? row[idx] : '';
+
+    DATA = raw.slice(1).map(r => {
+      const rawDate  = g(r,hi.date);
+      const marketId = String(g(r,hi.market)||'').trim();
+      const rawSub   = String(g(r,hi.sub)||'').trim();
+
+      // Look up mapping for this market
+      const map = MARKET_MAP[marketId];
+
+      // Resolve display fields
+      const country     = map ? map.country    : String(g(r,hi.country)||'').trim();
+      const countryCode = map ? (map.countryCode || '') : '';
+      const aggregator  = map ? map.aggregator : marketId;
+      // Operator: use operatorMap (per sub-service) if available, else use map.operator
+      let operator = map ? (map.operator || '') : '';
+      if(map && map.operatorMap && map.operatorMap[rawSub] !== undefined) {
+        operator = map.operatorMap[rawSub];
+      }
+      // Service: use serviceMap if available, else fall back to raw sub value
+      let service = rawSub;
+      if(map && map.serviceMap) {
+        const trimmedSub = rawSub.trim();
+        if(map.serviceMap[trimmedSub] !== undefined) {
+          service = map.serviceMap[trimmedSub];
+        } else if(map.defaultService) {
+          service = map.defaultService;
+        }
+      }
+
+      // SubService: use subServiceMap if available, else empty
+      let subService = '';
+      if(map && map.subServiceMap) {
+        const trimmedSub = rawSub.trim();
+        if(map.subServiceMap[trimmedSub] !== undefined) {
+          subService = map.subServiceMap[trimmedSub] === '__TOTAL__' ? '' : map.subServiceMap[trimmedSub];
+        }
+      }
+
+      return {
+        date:        String(rawDate||'').trim(),
+        dateObj:     pd(rawDate),
+        country,
+        countryCode,
+        aggregator,
+        operator,
+        service,
+        subService,
+        marketId,
+        rawService: String(g(r,hi.service)||'').trim(),
+        rawSub,
+        signups:    toN(g(r,hi.signups)),
+        billings:   toN(g(r,hi.billings)),
+        active:     toN(g(r,hi.active)),
+      };
+    }).filter(r => {
+      if(r.country==='' || r.dateObj===null) return false;
+      // Never show future dates
+      const today = new Date(); today.setHours(0,0,0,0);
+      if(r.dateObj > today) return false;
+      return true;
+    });
+
+    if(!DATA.length) throw new Error('No rows parsed successfully');
+
+    // Last data point = most recent non-future date
+    const today = sod(new Date());
+    const latestPast = DATA.filter(r=>r.dateObj<=today).reduce((max,r)=>(!max||r.dateObj>max)?r.dateObj:max,null);
+
+    document.getElementById('sDot').className='status-dot';
+    document.getElementById('sTxt').textContent=DATA.length.toLocaleString()+' records loaded';
+    document.getElementById('subtitle').textContent=
+      uniq(DATA.map(r=>r.aggregator)).length+' aggregators · '+
+      uniq(DATA.map(r=>r.country)).length+' countries';
+
+    if(latestPast){
+      document.getElementById('lastDateBox').style.display='block';
+      document.getElementById('lastDateVal').textContent=fd(latestPast);
+    }
+
+    rebuildDropdowns();
+    applyFilters();
+
+  } catch(e) {
+    document.getElementById('sDot').className='status-dot error';
+    document.getElementById('sTxt').textContent='Error: '+e.message;
+    document.getElementById('tBody').innerHTML=`<tr><td colspan="8" class="state-msg err">❌ ${e.message}</td></tr>`;
+  }
+}
+
+// ── DATE PRESETS ──────────────────────────────────────────────
+function getRange(){
+  const n=new Date();
+  if(!preset) return{f:null,t:null};
+  if(preset==='today')     return{f:sod(n),t:eod(n)};
+  if(preset==='yesterday') {const y=new Date(n);y.setDate(y.getDate()-1);return{f:sod(y),t:eod(y)};}
+  if(preset==='7d')        {const f=new Date(n);f.setDate(f.getDate()-6);return{f:sod(f),t:eod(n)};}
+  if(preset==='30d')       {const f=new Date(n);f.setDate(f.getDate()-29);return{f:sod(f),t:eod(n)};}
+  if(preset==='thismonth') return{f:sod(new Date(n.getFullYear(),n.getMonth(),1)),t:eod(n)};
+  if(preset==='lastmonth') return{f:sod(new Date(n.getFullYear(),n.getMonth()-1,1)),t:eod(new Date(n.getFullYear(),n.getMonth(),0))};
+  if(preset==='custom')    return{f:cFrom?sod(cFrom):null,t:cTo?eod(cTo):null};
+  return{f:null,t:null};
+}
+function setPreset(p,btn){
+  preset=p;
+  document.querySelectorAll('.preset').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('customDates').classList.toggle('show',p==='custom');
+  if(p!=='custom') applyFilters();
+}
+function onCustomDate(){
+  const pi=v=>{if(!v)return null;const[y,m,d]=v.split('-').map(Number);return new Date(y,m-1,d);};
+  cFrom=pi(document.getElementById('fDF').value);
+  cTo  =pi(document.getElementById('fDT').value);
+  applyFilters();
+}
+
+// ── CASCADE DROPDOWNS ─────────────────────────────────────────
+function rebuildDropdowns(){
+  const cVal  = document.getElementById('fCountry').value;
+  const aVal  = document.getElementById('fAggregator').value;
+  const oVal  = document.getElementById('fOperator').value;
+  const sVal  = document.getElementById('fService').value;
+
+  const fill=(id,opts,cur)=>{
+    const sel=document.getElementById(id);
+    while(sel.options.length>1) sel.remove(1);
+    opts.forEach(v=>sel.add(new Option(v,v)));
+    sel.value=opts.includes(cur)?cur:'';
+  };
+
+  // Country
+  fill('fCountry', uniq(DATA.map(r=>r.country)), cVal);
+
+  // Aggregator — filtered by country
+  const b1 = cVal ? DATA.filter(r=>r.country===cVal) : DATA;
+  fill('fAggregator', uniq(b1.map(r=>r.aggregator)), aVal);
+
+  // Operator — filtered by country + aggregator
+  const aV = document.getElementById('fAggregator').value;
+  const b2 = b1.filter(r=>!aV||r.aggregator===aV);
+  fill('fOperator', uniq(b2.map(r=>r.operator)).filter(v=>v!=='__ALL__'), oVal);
+
+  // Service — filtered by all above, exclude __TOTAL__ and __ALL__
+  const oV = document.getElementById('fOperator').value;
+  const b3 = b2.filter(r=>!oV||r.operator===oV||r.operator==='__ALL__');
+  const svcOpts = uniq(b3.map(r=>r.service)).filter(v=>v!=='__TOTAL__'&&v!=='__ALL__');
+  fill('fService', svcOpts, sVal);
+
+  // Sub-service — filtered by all above, only show when sub-services exist
+  const sV2 = document.getElementById('fService').value;
+  const b4 = b3.filter(r=>!sV2||r.service===sV2);
+  const subSvcVal = document.getElementById('fSubService').value;
+  const subSvcOpts = uniq(b4.map(r=>r.subService)).filter(v=>v!==''&&v!=='__TOTAL__');
+  fill('fSubService', subSvcOpts, subSvcVal);
+}
+
+// ── APPLY FILTERS ─────────────────────────────────────────────
+function applyFilters(){
+  const c   = document.getElementById('fCountry').value;
+  const a   = document.getElementById('fAggregator').value;
+  const o   = document.getElementById('fOperator').value;
+  const s   = document.getElementById('fService').value;
+  const ss  = document.getElementById('fSubService').value;
+  const{f:df,t:dt}=getRange();
+
+  filtered=DATA.filter(r=>{
+    if(c  && r.country!==c)    return false;
+    if(a  && r.aggregator!==a) return false;
+    if(o  && r.operator!==o && r.operator!=='__ALL__') return false;
+    if(s  && r.service!==s  && !isTotal(r)) return false;
+    if(ss && r.subService!==ss && !isTotal(r)) return false;
+    if(df && r.dateObj<df)     return false;
+    if(dt && r.dateObj>dt)     return false;
+    return true;
+  });
+
+  // Info banner
+  const banner=document.getElementById('infoBanner');
+  const bannerTxt=document.getElementById('infoBannerText');
+  if(!filtered.length && (df||dt)){
+    const today=sod(new Date());
+    const latest=DATA.filter(r=>r.dateObj<=today).reduce((max,r)=>(!max||r.dateObj>max)?r.dateObj:max,null);
+    if(latest){ bannerTxt.textContent='No data for selected range. Latest available: '+fd(latest)+'.'; banner.classList.add('show'); }
+  } else { banner.classList.remove('show'); }
+
+  pg=0; updateMetrics(); updateChart(); updateTable();
+}
+
+function resetAll(){
+  ['fCountry','fAggregator','fOperator','fService','fSubService'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fDF').value='';
+  document.getElementById('fDT').value='';
+  document.getElementById('customDates').classList.remove('show');
+  document.querySelectorAll('.preset').forEach(b=>b.classList.remove('active'));
+  preset=null; cFrom=null; cTo=null;
+  // Close mobile filter panel
+  document.getElementById('filtersBar').classList.remove('mobile-open');
+  document.getElementById('filtersToggle').classList.remove('open');
+  updateFiltersBadge();
+  rebuildDropdowns(); applyFilters();
+}
+
+// ── ACTIVE SUBS: latest value in filtered period ──────────────
+// Logic:
+//   • No service filter (All) → use TOTAL row per market (authoritative)
+//   • Specific service filter → sum only the active of filtered detail rows
+//     (TOTAL row is excluded because it would double-count)
+function getLatestActive(data){
+  const dated=data.filter(r=>r.dateObj);
+  if(!dated.length) return null;
+  const maxTs=Math.max(...dated.map(r=>r.dateObj.getTime()));
+  const maxStr=new Date(maxTs).toDateString();
+  const onDate=data.filter(r=>r.dateObj&&r.dateObj.toDateString()===maxStr&&r.active!==null&&!isNaN(r.active));
+  if(!onDate.length) return null;
+
+  const serviceFilter    = document.getElementById('fService').value;
+  const subServiceFilter = document.getElementById('fSubService').value;
+
+  if(!serviceFilter && !subServiceFilter){
+    // No service filter → prefer TOTAL row per market, fall back to sum of details
+    const byMkt={};
+    onDate.forEach(r=>{
+      if(!byMkt[r.marketId]) byMkt[r.marketId]={tot:null,subs:[]};
+      if(isTotal(r)) byMkt[r.marketId].tot=r.active;
+      else           byMkt[r.marketId].subs.push(r.active);
+    });
+    let sum=0;
+    Object.values(byMkt).forEach(m=>{
+      if(m.tot!==null) sum+=m.tot;
+      else if(m.subs.length) sum+=m.subs.reduce((a,v)=>a+v,0);
+    });
+    return sum||null;
+  } else {
+    // Service or sub-service filter active → sum active of filtered detail rows
+    // For sub-service filter: each sub-service row has the total active for that service
+    // so we take the latest value per service (not sum all sub-service rows which would multiply)
+    const detailRows = onDate.filter(r=>!isTotal(r));
+    if(!detailRows.length) return null;
+    if(subServiceFilter){
+      // When filtering by sub-service, sum active from matching rows
+      // Note: active on each sub-service row = total active for that service
+      // So we get unique services and take one value per service
+      const bySvc = {};
+      detailRows.forEach(r=>{
+        if(!bySvc[r.service] || r.active > 0) bySvc[r.service] = r.active||0;
+      });
+      return Object.values(bySvc).reduce((a,v)=>a+v,0)||null;
+    }
+    return detailRows.reduce((a,r)=>a+(r.active||0),0)||null;
+  }
+}
+
+// ── METRICS ───────────────────────────────────────────────────
+function updateMetrics(){
+  const detail=filtered.filter(r=>!isTotal(r));
+  const ts=detail.reduce((a,r)=>a+(r.signups||0),0);
+  const tb=detail.reduce((a,r)=>a+(r.billings||0),0);
+  const la=getLatestActive(filtered);
+  document.getElementById('mS').textContent=fmt(ts);
+  document.getElementById('mB').textContent=fmt(tb);
+  document.getElementById('mA').textContent=fmt(la);
+  document.getElementById('mSs').textContent=detail.length.toLocaleString()+' detail records';
+}
+
+// ── CHART ─────────────────────────────────────────────────────
+function setTab(t,btn){
+  tab=t;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  updateChart();
+}
+
+function updateChart(){
+  if(chart){chart.destroy();chart=null;}
+  const ctx=document.getElementById('cChart').getContext('2d');
+  const wrap=document.getElementById('cWrap');
+  const pivotWrap=document.getElementById('pivotWrap');
+  const tip={backgroundColor:'rgba(13,27,42,0.95)',titleColor:'#E8F0FE',bodyColor:'#9BB5D4',borderColor:'rgba(46,117,182,0.3)',borderWidth:1};
+  const detail=filtered.filter(r=>!isTotal(r));
+  const svcs=uniq(detail.map(r=>r.service));
+  const clrs=svcs.map((_,i)=>CLR[i%CLR.length]);
+
+  // Show/hide chart vs pivot
+  const isPivot = tab==='pivot_signups'||tab==='pivot_billings';
+  wrap.style.display = isPivot ? 'none' : 'block';
+  pivotWrap.style.display = isPivot ? 'block' : 'none';
+  const exportBtns = document.getElementById('pivotExportBtns');
+  if(exportBtns){ exportBtns.style.display = isPivot ? 'flex' : 'none'; }
+  if(exportBtns) exportBtns.setAttribute('data-metric', tab==='pivot_signups'?'signups':'billings');
+  const toggleBar = document.getElementById('pivotToggleBar');
+  if(toggleBar) toggleBar.style.display = isPivot ? 'flex' : 'none';
+
+  document.getElementById('cLegend').innerHTML = isPivot ? '' : svcs.map((s,i)=>
+    `<span class="leg"><span class="leg-dot" style="background:${clrs[i]}"></span>${s}</span>`
+  ).join('');
+
+  if(isPivot){
+    renderPivotTable(tab==='pivot_signups' ? 'signups' : 'billings');
+    return;
+  }
+
+  if(!detail.length){wrap.style.height='80px';ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);return;}
+
+  if(tab==='bar'||tab==='signup'){
+    const met=tab==='bar'?'billings':'signups';
+    document.getElementById('cTitle').textContent=tab==='bar'?'Total billings by service':'Total signups by service';
+    const vals=svcs.map(s=>Math.round(detail.filter(r=>r.service===s).reduce((a,r)=>a+(r[met]||0),0)));
+    wrap.style.height=Math.max(svcs.length*48+80,200)+'px';
+    chart=new Chart(ctx,{type:'bar',
+      data:{labels:svcs,datasets:[{data:vals,backgroundColor:clrs,borderRadius:5,borderSkipped:false}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{...tip,callbacks:{label:c=>' '+fmt(c.raw)}}},
+        scales:{
+          x:{grid:{color:'rgba(46,117,182,0.1)'},ticks:{color:'#5a7a9a',font:{size:11},callback:v=>fmt(v)},border:{display:false}},
+          y:{grid:{display:false},ticks:{color:'#9BB5D4',font:{size:11}},border:{display:false}}
+        }}});
+
+  } else if(tab==='trend'){
+    document.getElementById('cTitle').textContent='Daily billings trend';
+    wrap.style.height='300px';
+    const bd={};
+    detail.forEach(r=>{
+      if(!r.dateObj) return;
+      const k=fiso(r.dateObj);
+      bd[k]=(bd[k]||0)+(r.billings||0);
+    });
+    const days=Object.keys(bd).sort();
+    chart=new Chart(ctx,{type:'line',
+      data:{labels:days,datasets:[{data:days.map(d=>Math.round(bd[d])),borderColor:'#00B4D8',backgroundColor:'rgba(0,180,216,0.06)',borderWidth:2,pointRadius:days.length>60?0:3,pointBackgroundColor:'#00B4D8',tension:0.3,fill:true}]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{...tip,callbacks:{label:c=>' '+fmt(c.raw)}}},
+        scales:{
+          x:{grid:{color:'rgba(46,117,182,0.1)'},ticks:{color:'#5a7a9a',font:{size:10},maxTicksLimit:14},border:{display:false}},
+          y:{grid:{color:'rgba(46,117,182,0.1)'},ticks:{color:'#5a7a9a',font:{size:11},callback:v=>fmt(v)},border:{display:false}}
+        }}});
+
+  } else if(tab==='donut'){
+    document.getElementById('cTitle').textContent='Active subscribers by service';
+    wrap.style.height='300px';
+    const act={};
+    svcs.forEach(s=>{
+      const svcRows=filtered.filter(r=>r.service===s&&r.dateObj);
+      if(!svcRows.length) return;
+      const maxTs=Math.max(...svcRows.map(r=>r.dateObj.getTime()));
+      const maxStr=new Date(maxTs).toDateString();
+      const onDate=svcRows.filter(r=>r.dateObj.toDateString()===maxStr&&r.active!==null&&!isNaN(r.active));
+      if(onDate.length) act[s]=onDate.reduce((a,r)=>a+(r.active||0),0);
+    });
+    const lbls=Object.keys(act).filter(k=>act[k]>0);
+    const vals=lbls.map(l=>act[l]);
+    if(!lbls.length){wrap.style.height='80px';return;}
+    chart=new Chart(ctx,{type:'doughnut',
+      data:{labels:lbls,datasets:[{data:vals,backgroundColor:lbls.map((_,i)=>CLR[i%CLR.length]),borderWidth:2,borderColor:'#112240',cutout:'62%'}]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{position:'right',labels:{color:'#9BB5D4',font:{size:11},boxWidth:12}},
+          tooltip:{...tip,callbacks:{label:c=>c.label+': '+fmt(c.raw)}}}}});
+  }
+}
+
+// ── PIVOT TABLE ───────────────────────────────────────────────
+// Rows = dates (sorted desc), Columns = services, Values = signups or billings
+function renderPivotTable(metric){
+  const pivotWrap = document.getElementById('pivotWrap');
+  const detail = filtered.filter(r=>!isTotal(r));
+
+  document.getElementById('cTitle').textContent =
+    metric==='signups' ? 'Signups per day by service' : 'Billings per day by service';
+
+  if(!detail.length){
+    pivotWrap.innerHTML='<div class="state-msg">No data matches current filters</div>';
+    return;
+  }
+
+  // Get unique sorted dates — sort by dateObj timestamp for guaranteed correct order
+  // asc: oldest first, newest last (bottom)
+  const dateSet = new Map(); // isoStr → timestamp
+  detail.forEach(r=>{ if(r.dateObj) dateSet.set(fiso(r.dateObj), r.dateObj.getTime()); });
+
+  // Generate ALL dates in range using local date arithmetic (avoids DST shifts)
+  const sortedEntries = [...dateSet.entries()].sort((a,b)=>a[1]-b[1]);
+  let dates = [];
+  if(sortedEntries.length > 0){
+    // Use the ISO strings directly to iterate — safer than timestamp arithmetic
+    const firstIso = sortedEntries[0][0];
+    const lastIso  = sortedEntries[sortedEntries.length-1][0];
+    const [fy,fm,fd2] = firstIso.split('-').map(Number);
+    const [ly,lm,ld2] = lastIso.split('-').map(Number);
+    let cur = new Date(fy, fm-1, fd2);
+    const end = new Date(ly, lm-1, ld2);
+    while(cur <= end){
+      const iso = fiso(cur);
+      dates.push(iso);
+      cur = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate()+1);
+    }
+  }
+
+  // Build column keys: use subService if available, else service
+  // Key format: "CC|service|subService" or "CC|service" if no subService
+  const svcLabelMap = {};
+  detail.forEach(r=>{
+    const key = r.subService
+      ? r.countryCode+'|'+r.service+'|'+r.subService
+      : r.countryCode+'|'+r.service;
+    if(!svcLabelMap[key]){
+      const label = r.subService
+        ? (r.countryCode+'_'+r.service+'_'+r.subService)
+        : (r.countryCode ? r.countryCode+'_' : '')+r.service;
+      svcLabelMap[key] = label;
+    }
+  });
+  const svcKeys   = [...new Set(detail.map(r=>
+    r.subService
+      ? r.countryCode+'|'+r.service+'|'+r.subService
+      : r.countryCode+'|'+r.service
+  ))].sort();
+  const svcLabels = svcKeys.map(k=>svcLabelMap[k]);
+
+  // Build pivot data using the new keys
+  const pivot = {};
+  const totByDate = {};
+  const totBySvc  = {};
+  detail.forEach(r=>{
+    if(!r.dateObj) return;
+    const d = fiso(r.dateObj);
+    const k = r.subService
+      ? r.countryCode+'|'+r.service+'|'+r.subService
+      : r.countryCode+'|'+r.service;
+    const v = r[metric] || 0;
+    if(!pivot[d]) pivot[d]={};
+    pivot[d][k] = (pivot[d][k]||0) + v;
+    totByDate[d] = (totByDate[d]||0) + v;
+    totBySvc[k]  = (totBySvc[k]||0)  + v;
+  });
+  const grandTotal = Object.values(totByDate).reduce((a,v)=>a+v,0);
+
+  let pivotSortDir = 'asc';
+
+  // Populate the persistent toggle bar (outside pivotWrap, never regenerated)
+  // Store service keys/labels globally so pivotUpdateButtons can always access them
+  pivotSvcKeys = svcKeys;
+  pivotSvcLabels = svcLabels;
+
+  const toggleBarEl = document.getElementById('pivotToggleBar');
+  toggleBarEl.style.display = 'flex';
+  pivotUpdateButtons();
+
+  // Build table HTML — toggle bar is external (id=pivotToggleBar in HTML)
+  let html = `<table class="pivot-table"><thead><tr>`;
+  html += `<th onclick="togglePivotSort(this)" style="cursor:pointer">Date <span>↑</span></th>`;
+  svcKeys.forEach((k,i) => html += `<th data-col="${k}">${svcLabels[i]}</th>`);
+  html += '<th>TOTAL</th>';
+  html += '</tr></thead><tbody id="pivotBody"></tbody></table>';
+  pivotWrap.innerHTML = html;
+
+  pivotUpdateStyles();
+
+  function renderPivotRows(dir){
+    const orderedDates = dir==='asc' ? [...dates] : [...dates].reverse();
+    let rows = '';
+    orderedDates.forEach(d=>{
+      const [yyyy, mm, dd] = d.split('-');
+      const dispDate = `${dd}/${mm}/${yyyy.slice(2)}`;
+      rows += `<tr><td>${dispDate}</td>`;
+      svcKeys.forEach(k=>{
+        const v = pivot[d]?.[k] || 0;
+        rows += `<td data-col="${k}" class="${v===0?'pivot-zero':''}">${Math.round(v).toLocaleString()}</td>`;
+      });
+      const rowTotal = totByDate[d]||0;
+      rows += `<td style="color:var(--accent2);font-weight:600">${Math.round(rowTotal).toLocaleString()}</td>`;
+      rows += '</tr>';
+    });
+    rows += `<tr class="total-row"><td>TOTAL</td>`;
+    svcKeys.forEach(k=>{
+      rows += `<td data-col="${k}">${Math.round(totBySvc[k]||0).toLocaleString()}</td>`;
+    });
+    rows += `<td>${Math.round(grandTotal).toLocaleString()}</td></tr>`;
+    document.getElementById('pivotBody').innerHTML = rows;
+    pivotUpdateStyles();
+  }
+
+  window.togglePivotSort = function(th){
+    pivotSortDir = pivotSortDir==='asc'?'desc':'asc';
+    th.querySelector('span').textContent = pivotSortDir==='asc'?'↑':'↓';
+    renderPivotRows(pivotSortDir);
+  };
+
+  renderPivotRows(pivotSortDir);
+}
+
+// ── EXPORT FUNCTIONS ──────────────────────────────────────────
+function downloadCSV(csvContent, filename){
+  const blob = new Blob(['\uFEFF'+csvContent], {type:'text/csv;charset=utf-8;'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Export pivot table (Signups or Billings) as CSV
+function exportPivot(format='csv'){
+  const btns   = document.getElementById('pivotExportBtns');
+  const metric = btns ? btns.getAttribute('data-metric') : 'signups';
+  const detail = filtered.filter(r=>!isTotal(r));
+  if(!detail.length) return;
+
+  const dateSet2 = new Map();
+  detail.forEach(r=>{ if(r.dateObj) dateSet2.set(fiso(r.dateObj), r.dateObj.getTime()); });
+  const sortedEntries2 = [...dateSet2.entries()].sort((a,b)=>a[1]-b[1]);
+  let dates = [];
+  if(sortedEntries2.length > 0){
+    const firstIso = sortedEntries2[0][0];
+    const lastIso  = sortedEntries2[sortedEntries2.length-1][0];
+    const [fy,fm,fd2] = firstIso.split('-').map(Number);
+    const [ly,lm,ld2] = lastIso.split('-').map(Number);
+    let cur = new Date(fy, fm-1, fd2);
+    const end = new Date(ly, lm-1, ld2);
+    while(cur <= end){
+      dates.push(fiso(cur));
+      cur = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate()+1);
+    }
+  }
+
+  const svcLabelMap2 = {};
+  detail.forEach(r=>{
+    const key = r.subService ? r.countryCode+'|'+r.service+'|'+r.subService : r.countryCode+'|'+r.service;
+    if(!svcLabelMap2[key]) svcLabelMap2[key] = r.subService
+      ? r.countryCode+'_'+r.service+'_'+r.subService
+      : (r.countryCode?r.countryCode+'_':'')+r.service;
+  });
+  const svcKeys2   = [...new Set(detail.map(r=>r.subService?r.countryCode+'|'+r.service+'|'+r.subService:r.countryCode+'|'+r.service))].sort();
+  const svcLabels2 = svcKeys2.map(k=>svcLabelMap2[k]);
+
+  const pivot2 = {};
+  dates.forEach(d=>{ pivot2[d]={}; svcKeys2.forEach(k=>{ pivot2[d][k]=0; }); });
+  detail.forEach(r=>{
+    if(!r.dateObj) return;
+    const d=fiso(r.dateObj);
+    const k=r.subService?r.countryCode+'|'+r.service+'|'+r.subService:r.countryCode+'|'+r.service;
+    const v=r[metric]||0;
+    if(pivot2[d]) pivot2[d][k]=(pivot2[d][k]||0)+v;
+  });
+
+  const label = metric==='signups'?'Signups':'Billings';
+  const headers = ['Date', ...svcLabels2, 'TOTAL'];
+  const dataRows = dates.map(d=>{
+    const [yyyy,mm,dd] = d.split('-');
+    const disp = `${dd}/${mm}/${yyyy.slice(2)}`;
+    const vals = svcKeys2.map(k=>Math.round(pivot2[d][k]||0));
+    return [disp, ...vals, vals.reduce((a,v)=>a+v,0)];
+  });
+  const colTotals = svcKeys2.map(k=>Math.round(detail.filter(r=>{
+    const rk = r.subService?r.countryCode+'|'+r.service+'|'+r.subService:r.countryCode+'|'+r.service;
+    return rk===k;
+  }).reduce((a,r)=>a+(r[metric]||0),0)));
+  dataRows.push(['TOTAL', ...colTotals, colTotals.reduce((a,v)=>a+v,0)]);
+
+  const filename = `${label}_by_service_${fiso(new Date())}`;
+
+  if(format==='csv'){
+    const csv = [headers, ...dataRows].map(r=>r.join(',')).join('\n');
+    downloadCSV(csv, filename+'.csv');
+  } else {
+    const table = [headers, ...dataRows].map(r=>
+      '<tr>'+r.map(v=>`<td>${v}</td>`).join('')+'</tr>'
+    ).join('');
+    const xls = `<html><head><meta charset="UTF-8"></head><body><table>${table}</table></body></html>`;
+    const blob = new Blob([xls], {type:'application/vnd.ms-excel;charset=utf-8'});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href=url; a.download=filename+'.xls'; a.click();
+    URL.revokeObjectURL(url);
+  }
+}
+
+// Export data table as CSV (all filtered rows, not just current page)
+function exportDataTable(format){
+  const sorted = [...filtered].sort((a,b)=>b.dateObj-a.dateObj);
+  const headers = ['Date','Country','Aggregator','Operator','Service','Subscribers','Billings','Active Subs'];
+
+  const rows = sorted.map(r=>[
+    fd(r.dateObj),
+    r.country,
+    r.aggregator,
+    r.operator==='__ALL__'?'':r.operator,
+    isTotal(r)?'TOTAL':r.service,
+    r.signups!==null&&!isNaN(r.signups)?Math.round(r.signups):'',
+    r.billings!==null&&!isNaN(r.billings)?Math.round(r.billings):'',
+    r.active!==null&&!isNaN(r.active)?Math.round(r.active):''
+  ]);
+
+  if(format==='csv'){
+    const csv = [headers, ...rows].map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+    downloadCSV(csv, `billing_data_${fiso(new Date())}.csv`);
+  } else {
+    // Excel export using data: URI with HTML table
+    const table = [headers, ...rows].map(r=>
+      '<tr>'+r.map(v=>`<td>${v}</td>`).join('')+'</tr>'
+    ).join('');
+    const xls = `<html><head><meta charset="UTF-8"></head><body><table>${table}</table></body></html>`;
+    const blob = new Blob([xls], {type:'application/vnd.ms-excel;charset=utf-8'});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `billing_data_${fiso(new Date())}.xls`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+}
+
+// ── TABLE ─────────────────────────────────────────────────────
+function sortBy(col){
+  if(sortCol===col) sortDir = sortDir==='asc'?'desc':'asc';
+  else { sortCol=col; sortDir = col==='date'?'desc':'asc'; }
+  pg=0;
+  updateTable();
+}
+
+function updateSortArrows(){
+  ['date','country','aggregator','operator','service','subService','signups','billings','active'].forEach(c=>{
+    const el = document.getElementById('sort_'+c);
+    if(!el) return;
+    if(c===sortCol) el.textContent = sortDir==='asc'?'↑':'↓';
+    else el.textContent='↕';
+  });
+}
+
+function updateTable(){
+  const tb=document.getElementById('tBody');
+  if(!filtered.length){
+    tb.innerHTML='<tr><td colspan="9" class="state-msg">No data matches current filters</td></tr>';
+    ['pInfo','tInfo'].forEach(id=>document.getElementById(id).textContent='0 results');
+    document.getElementById('bPrev').disabled=true;
+    document.getElementById('bNext').disabled=true;
+    updateSortArrows();
+    return;
+  }
+
+  const sorted=[...filtered].sort((a,b)=>{
+    let va, vb;
+    if(sortCol==='date'){
+      va = a.dateObj ? a.dateObj.getTime() : 0;
+      vb = b.dateObj ? b.dateObj.getTime() : 0;
+    } else if(['signups','billings','active'].includes(sortCol)){
+      va = a[sortCol]||0;
+      vb = b[sortCol]||0;
+    } else {
+      va = String(a[sortCol]||'').toLowerCase();
+      vb = String(b[sortCol]||'').toLowerCase();
+    }
+    if(va<vb) return sortDir==='asc'?-1:1;
+    if(va>vb) return sortDir==='asc'?1:-1;
+    return 0;
+  });
+
+  const slice=sorted.slice(pg*PS,(pg+1)*PS);
+  tb.innerHTML=slice.map(r=>`<tr${isTotal(r)?' style="opacity:0.6"':''}>
+    <td style="font-family:'IBM Plex Mono',monospace;font-size:11px">${fd(r.dateObj)}</td>
+    <td>${r.country}</td>
+    <td><span class="badge">${r.aggregator}</span></td>
+    <td>${r.operator==='__ALL__'?'—':r.operator}</td>
+    <td>${isTotal(r)?'<span style="color:var(--text3);font-style:italic">TOTAL</span>':r.service}</td>
+    <td>${r.subService||'—'}</td>
+    <td class="num">${r.signups!==null&&!isNaN(r.signups)?Math.round(r.signups).toLocaleString():'<span class="dv">—</span>'}</td>
+    <td class="num">${r.billings!==null&&!isNaN(r.billings)?Math.round(r.billings).toLocaleString():'<span class="dv">—</span>'}</td>
+    <td class="num">${r.active!==null&&!isNaN(r.active)?Math.round(r.active).toLocaleString():'<span class="dv">—</span>'}</td>
+  </tr>`).join('');
+  const tp=Math.ceil(filtered.length/PS);
+  document.getElementById('pInfo').textContent=`Page ${pg+1} of ${tp} · ${filtered.length.toLocaleString()} records`;
+  document.getElementById('tInfo').textContent=filtered.length.toLocaleString()+' records';
+  document.getElementById('bPrev').disabled=pg===0;
+  document.getElementById('bNext').disabled=(pg+1)>=tp;
+  updateSortArrows();
+}
+function prevPage(){if(pg>0){pg--;updateTable();}}
+function nextPage(){if((pg+1)*PS<filtered.length){pg++;updateTable();}}
+
+document.getElementById('fCountry').addEventListener('change',()=>{rebuildDropdowns();applyFilters();updateFiltersBadge();});
+document.getElementById('fAggregator').addEventListener('change',()=>{rebuildDropdowns();applyFilters();updateFiltersBadge();});
+document.getElementById('fOperator').addEventListener('change',()=>{rebuildDropdowns();applyFilters();updateFiltersBadge();});
+document.getElementById('fService').addEventListener('change',()=>{rebuildDropdowns();applyFilters();updateFiltersBadge();});
+document.getElementById('fSubService').addEventListener('change',()=>{applyFilters();updateFiltersBadge();});
+
+function toggleFilters(){
+  const bar = document.getElementById('filtersBar');
+  const btn = document.getElementById('filtersToggle');
+  bar.classList.toggle('mobile-open');
+  btn.classList.toggle('open');
+}
+
+function updateFiltersBadge(){
+  const hasFilter = ['fCountry','fAggregator','fOperator','fService','fSubService'].some(id=>document.getElementById(id).value!=='') || preset;
+  const badge = document.getElementById('filtersActiveBadge');
+  if(badge) badge.style.display = hasFilter ? 'inline' : 'none';
+}
+
+loadData();
+</script>
+</body>
+</html>
