@@ -1036,27 +1036,37 @@ function renderPivotTable(metric){
     }
   }
 
-  // Build service labels with country prefix: "NZ_8995", "CL_Adult Video", etc.
-  // Use a map to track service → prefixed label
-  const svcLabelMap = {}; // "NZ|8995" → "NZ_8995"
+  // Build column keys: use subService if available, else service
+  // Key format: "CC|service|subService" or "CC|service" if no subService
+  const svcLabelMap = {};
   detail.forEach(r=>{
-    const key = r.countryCode + '|' + r.service;
+    const key = r.subService
+      ? r.countryCode+'|'+r.service+'|'+r.subService
+      : r.countryCode+'|'+r.service;
     if(!svcLabelMap[key]){
-      svcLabelMap[key] = (r.countryCode ? r.countryCode+'_' : '') + r.service;
+      const label = r.subService
+        ? (r.countryCode+'_'+r.service+'_'+r.subService)
+        : (r.countryCode ? r.countryCode+'_' : '')+r.service;
+      svcLabelMap[key] = label;
     }
   });
-  // Unique sorted prefixed service labels
-  const svcKeys   = [...new Set(detail.map(r=>r.countryCode+'|'+r.service))].sort();
+  const svcKeys   = [...new Set(detail.map(r=>
+    r.subService
+      ? r.countryCode+'|'+r.service+'|'+r.subService
+      : r.countryCode+'|'+r.service
+  ))].sort();
   const svcLabels = svcKeys.map(k=>svcLabelMap[k]);
 
-  // Build pivot data: { date: { "CC|service": value } }
+  // Build pivot data using the new keys
   const pivot = {};
   const totByDate = {};
   const totBySvc  = {};
   detail.forEach(r=>{
     if(!r.dateObj) return;
     const d = fiso(r.dateObj);
-    const k = r.countryCode+'|'+r.service;
+    const k = r.subService
+      ? r.countryCode+'|'+r.service+'|'+r.subService
+      : r.countryCode+'|'+r.service;
     const v = r[metric] || 0;
     if(!pivot[d]) pivot[d]={};
     pivot[d][k] = (pivot[d][k]||0) + v;
@@ -1156,17 +1166,21 @@ function exportPivot(format='csv'){
 
   const svcLabelMap2 = {};
   detail.forEach(r=>{
-    const key = r.countryCode+'|'+r.service;
-    if(!svcLabelMap2[key]) svcLabelMap2[key] = (r.countryCode?r.countryCode+'_':'')+r.service;
+    const key = r.subService ? r.countryCode+'|'+r.service+'|'+r.subService : r.countryCode+'|'+r.service;
+    if(!svcLabelMap2[key]) svcLabelMap2[key] = r.subService
+      ? r.countryCode+'_'+r.service+'_'+r.subService
+      : (r.countryCode?r.countryCode+'_':'')+r.service;
   });
-  const svcKeys2   = [...new Set(detail.map(r=>r.countryCode+'|'+r.service))].sort();
+  const svcKeys2   = [...new Set(detail.map(r=>r.subService?r.countryCode+'|'+r.service+'|'+r.subService:r.countryCode+'|'+r.service))].sort();
   const svcLabels2 = svcKeys2.map(k=>svcLabelMap2[k]);
 
   const pivot2 = {};
   dates.forEach(d=>{ pivot2[d]={}; svcKeys2.forEach(k=>{ pivot2[d][k]=0; }); });
   detail.forEach(r=>{
     if(!r.dateObj) return;
-    const d=fiso(r.dateObj), k=r.countryCode+'|'+r.service, v=r[metric]||0;
+    const d=fiso(r.dateObj);
+    const k=r.subService?r.countryCode+'|'+r.service+'|'+r.subService:r.countryCode+'|'+r.service;
+    const v=r[metric]||0;
     if(pivot2[d]) pivot2[d][k]=(pivot2[d][k]||0)+v;
   });
 
@@ -1178,7 +1192,10 @@ function exportPivot(format='csv'){
     const vals = svcKeys2.map(k=>Math.round(pivot2[d][k]||0));
     return [disp, ...vals, vals.reduce((a,v)=>a+v,0)];
   });
-  const colTotals = svcKeys2.map(k=>Math.round(detail.filter(r=>r.countryCode+'|'+r.service===k).reduce((a,r)=>a+(r[metric]||0),0)));
+  const colTotals = svcKeys2.map(k=>Math.round(detail.filter(r=>{
+    const rk = r.subService?r.countryCode+'|'+r.service+'|'+r.subService:r.countryCode+'|'+r.service;
+    return rk===k;
+  }).reduce((a,r)=>a+(r[metric]||0),0)));
   dataRows.push(['TOTAL', ...colTotals, colTotals.reduce((a,v)=>a+v,0)]);
 
   const filename = `${label}_by_service_${fiso(new Date())}`;
