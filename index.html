@@ -557,6 +557,24 @@ function pivotUpdateButtons(){
       else hiddenColsGlobal.add(k);
       pivotUpdateStyles();
       pivotUpdateButtons();
+      // Re-render rows so totals reflect visible columns only
+      const pivotBody = document.getElementById('pivotBody');
+      if(pivotBody) {
+        pivotBody.querySelectorAll('tr').forEach(tr => {
+          const cells = tr.querySelectorAll('td[data-col]');
+          const totalCell = tr.querySelector('td.row-total-cell');
+          if(!totalCell) return;
+          let sum = 0;
+          cells.forEach(td => {
+            const col = td.getAttribute('data-col');
+            if(!hiddenColsGlobal.has(col)){
+              const v = parseFloat(td.textContent.replace(/,/g,'')) || 0;
+              sum += v;
+            }
+          });
+          totalCell.textContent = Math.round(sum).toLocaleString();
+        });
+      }
     };
     bar.appendChild(btn);
   });
@@ -1107,15 +1125,18 @@ function renderPivotTable(metric){
         const v = pivot[d]?.[k] || 0;
         rows += `<td data-col="${k}" class="${v===0?'pivot-zero':''}">${Math.round(v).toLocaleString()}</td>`;
       });
-      const rowTotal = totByDate[d]||0;
-      rows += `<td style="color:var(--accent2);font-weight:600">${Math.round(rowTotal).toLocaleString()}</td>`;
+      // Row total: only sum visible (non-hidden) columns
+      const rowTotal = svcKeys.filter(k=>!hiddenColsGlobal.has(k)).reduce((a,k)=>a+(pivot[d]?.[k]||0),0);
+      rows += `<td class="row-total-cell" style="color:var(--accent2);font-weight:600">${Math.round(rowTotal).toLocaleString()}</td>`;
       rows += '</tr>';
     });
+    // Grand total: only sum visible columns
+    const visibleGrandTotal = svcKeys.filter(k=>!hiddenColsGlobal.has(k)).reduce((a,k)=>a+(totBySvc[k]||0),0);
     rows += `<tr class="total-row"><td>TOTAL</td>`;
     svcKeys.forEach(k=>{
       rows += `<td data-col="${k}">${Math.round(totBySvc[k]||0).toLocaleString()}</td>`;
     });
-    rows += `<td>${Math.round(grandTotal).toLocaleString()}</td></tr>`;
+    rows += `<td class="row-total-cell">${Math.round(visibleGrandTotal).toLocaleString()}</td></tr>`;
     document.getElementById('pivotBody').innerHTML = rows;
     pivotUpdateStyles();
   }
