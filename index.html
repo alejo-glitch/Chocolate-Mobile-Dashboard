@@ -557,24 +557,7 @@ function pivotUpdateButtons(){
       else hiddenColsGlobal.add(k);
       pivotUpdateStyles();
       pivotUpdateButtons();
-      // Re-render rows so totals reflect visible columns only
-      const pivotBody = document.getElementById('pivotBody');
-      if(pivotBody) {
-        pivotBody.querySelectorAll('tr').forEach(tr => {
-          const cells = tr.querySelectorAll('td[data-col]');
-          const totalCell = tr.querySelector('td.row-total-cell');
-          if(!totalCell) return;
-          let sum = 0;
-          cells.forEach(td => {
-            const col = td.getAttribute('data-col');
-            if(!hiddenColsGlobal.has(col)){
-              const v = parseFloat(td.textContent.replace(/,/g,'')) || 0;
-              sum += v;
-            }
-          });
-          totalCell.textContent = Math.round(sum).toLocaleString();
-        });
-      }
+      setTimeout(recalcPivotTotals, 0);
     };
     bar.appendChild(btn);
   });
@@ -1114,6 +1097,23 @@ function renderPivotTable(metric){
 
   pivotUpdateStyles();
 
+  function recalcPivotTotals(){
+    // Recalculate all row totals and grand total based on currently visible columns
+    const pivotBody = document.getElementById('pivotBody');
+    if(!pivotBody) return;
+    pivotBody.querySelectorAll('tr').forEach(tr=>{
+      const totalCell = tr.querySelector('td.row-total-cell');
+      if(!totalCell) return;
+      let sum = 0;
+      tr.querySelectorAll('td[data-col]').forEach(td=>{
+        if(!hiddenColsGlobal.has(td.getAttribute('data-col'))){
+          sum += parseFloat(td.textContent.replace(/,/g,''))||0;
+        }
+      });
+      totalCell.textContent = Math.round(sum).toLocaleString();
+    });
+  }
+
   function renderPivotRows(dir){
     const orderedDates = dir==='asc' ? [...dates] : [...dates].reverse();
     let rows = '';
@@ -1125,20 +1125,19 @@ function renderPivotTable(metric){
         const v = pivot[d]?.[k] || 0;
         rows += `<td data-col="${k}" class="${v===0?'pivot-zero':''}">${Math.round(v).toLocaleString()}</td>`;
       });
-      // Row total: only sum visible (non-hidden) columns
-      const rowTotal = svcKeys.filter(k=>!hiddenColsGlobal.has(k)).reduce((a,k)=>a+(pivot[d]?.[k]||0),0);
-      rows += `<td class="row-total-cell" style="color:var(--accent2);font-weight:600">${Math.round(rowTotal).toLocaleString()}</td>`;
+      // Total cell — value set after render by recalcPivotTotals()
+      rows += `<td class="row-total-cell" style="color:var(--accent2);font-weight:600">0</td>`;
       rows += '</tr>';
     });
-    // Grand total: only sum visible columns
-    const visibleGrandTotal = svcKeys.filter(k=>!hiddenColsGlobal.has(k)).reduce((a,k)=>a+(totBySvc[k]||0),0);
     rows += `<tr class="total-row"><td>TOTAL</td>`;
     svcKeys.forEach(k=>{
       rows += `<td data-col="${k}">${Math.round(totBySvc[k]||0).toLocaleString()}</td>`;
     });
-    rows += `<td class="row-total-cell">${Math.round(visibleGrandTotal).toLocaleString()}</td></tr>`;
+    rows += `<td class="row-total-cell">0</td></tr>`;
     document.getElementById('pivotBody').innerHTML = rows;
     pivotUpdateStyles();
+    // Now recalc totals AFTER styles applied (hidden cols now display:none)
+    setTimeout(recalcPivotTotals, 0);
   }
 
   window.togglePivotSort = function(th){
