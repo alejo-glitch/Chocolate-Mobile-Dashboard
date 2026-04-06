@@ -180,9 +180,71 @@
     .metrics{grid-template-columns:1fr}
     .metric-value{font-size:26px}
   }
+
+  /* ── LOGIN ── */
+  #loginOverlay{
+    position:fixed;inset:0;background:var(--bg);
+    display:flex;align-items:center;justify-content:center;
+    z-index:9999;
+  }
+  #loginOverlay.hidden{display:none}
+  .login-box{
+    background:var(--bg2);border:1px solid var(--border2);
+    border-radius:14px;padding:40px 36px;width:100%;max-width:360px;
+    display:flex;flex-direction:column;gap:20px;
+    box-shadow:0 8px 40px rgba(0,0,0,0.4);
+  }
+  .login-logo{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .login-logo .logo{width:36px;height:36px}
+  .login-title{font-size:18px;font-weight:600;color:#fff}
+  .login-subtitle{font-size:12px;color:var(--text3);margin-top:2px}
+  .login-field{display:flex;flex-direction:column;gap:6px}
+  .login-field label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;font-weight:500}
+  .login-field input{
+    background:var(--bg3);border:1px solid var(--border);
+    color:var(--text);padding:10px 14px;border-radius:8px;
+    font-size:13px;font-family:'Inter',sans-serif;outline:none;
+    transition:border 0.2s;
+  }
+  .login-field input:focus{border-color:var(--accent)}
+  .login-btn{
+    background:var(--accent);color:#fff;border:none;
+    padding:11px;border-radius:8px;font-size:13px;font-weight:600;
+    cursor:pointer;font-family:'Inter',sans-serif;
+    transition:background 0.2s;margin-top:4px;
+  }
+  .login-btn:hover{background:var(--accent2);color:#0D1B2A}
+  .login-error{
+    font-size:12px;color:var(--red);text-align:center;
+    display:none;background:rgba(226,75,74,0.1);
+    border:1px solid rgba(226,75,74,0.3);
+    border-radius:6px;padding:8px;
+  }
+  .login-error.show{display:block}
 </style>
 </head>
 <body>
+<div id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo"><svg viewBox="0 0 24 24"><path d="M3 3h18v4H3zm0 6h18v4H3zm0 6h18v4H3z"/></svg></div>
+      <div>
+        <div class="login-title">Master Billing Report</div>
+        <div class="login-subtitle">Acceso restringido</div>
+      </div>
+    </div>
+    <div class="login-field">
+      <label>Usuario</label>
+      <input type="text" id="loginUser" placeholder="Usuario" autocomplete="username">
+    </div>
+    <div class="login-field">
+      <label>Contraseña</label>
+      <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password">
+    </div>
+    <div class="login-error" id="loginError">Usuario o contraseña incorrectos</div>
+    <button class="login-btn" onclick="doLogin()">Ingresar</button>
+  </div>
+</div>
 
 <div class="topbar">
   <div class="topbar-left">
@@ -1357,7 +1419,53 @@ function updateFiltersBadge(){
   if(badge) badge.style.display = hasFilter ? 'inline' : 'none';
 }
 
-loadData();
+// loadData() called after auth check
+
+// ── AUTH ─────────────────────────────────────────────────────
+const AUTH_USER = '7499aced43869b27f505701e4edc737f0cc346add1240d4ba86fbfa251e0fc35';
+const AUTH_PASS = 'f4186692e7f065b846bbb03ebeb436e7028146b09390bc667a77db957b68c57c';
+const SESSION_HOURS = 8;
+const SESSION_KEY = 'mbr_session';
+
+async function sha256(str){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+async function doLogin(){
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const [uh, ph] = await Promise.all([sha256(user), sha256(pass)]);
+  if(uh === AUTH_USER && ph === AUTH_PASS){
+    const expiry = Date.now() + SESSION_HOURS * 3600 * 1000;
+    localStorage.setItem(SESSION_KEY, expiry);
+    document.getElementById('loginOverlay').classList.add('hidden');
+    loadData();
+  } else {
+    document.getElementById('loginError').classList.add('show');
+    document.getElementById('loginPass').value = '';
+  }
+}
+
+function checkSession(){
+  const expiry = localStorage.getItem(SESSION_KEY);
+  if(expiry && Date.now() < parseInt(expiry)){
+    document.getElementById('loginOverlay').classList.add('hidden');
+    return true;
+  }
+  localStorage.removeItem(SESSION_KEY);
+  return false;
+}
+
+// Enter key triggers login
+document.addEventListener('DOMContentLoaded', () => {
+  ['loginUser','loginPass'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+  });
+  if(checkSession()) loadData();
+});
+
 </script>
 </body>
 </html>
