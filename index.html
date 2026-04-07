@@ -1113,17 +1113,12 @@ function renderPivotTable(metric){
       svcLabelMap[key] = label;
     }
   });
-  // Build all keys (unsorted first)
-  const allSvcKeys = [...new Set(detail.map(r=>
-    r.subService
-      ? r.countryCode+'|'+r.service+'|'+r.subService
-      : r.countryCode+'|'+r.service
-  ))];
-
-  // Build pivot data first so we can compute activity totals for sorting
+  // Build pivot data first
   const pivot = {};
   const totByDate = {};
   const totBySvc  = {};
+  // Also track first date seen per key (for sorting by service age)
+  const firstDateBySvc = {};
   detail.forEach(r=>{
     if(!r.dateObj) return;
     const d = fiso(r.dateObj);
@@ -1135,29 +1130,26 @@ function renderPivotTable(metric){
     pivot[d][k] = (pivot[d][k]||0) + v;
     totByDate[d] = (totByDate[d]||0) + v;
     totBySvc[k]  = (totBySvc[k]||0)  + v;
+    // Track earliest date for each service (across ALL data, not just filtered)
+    if(!firstDateBySvc[k] || d < firstDateBySvc[k]) firstDateBySvc[k] = d;
   });
   const grandTotal = Object.values(totByDate).reduce((a,v)=>a+v,0);
 
-  // Compute billings per key since 2026-01-01 to determine "active" columns
-  const activityCutoff = new Date(2026, 0, 1); // 01/01/2026
-  const billingSince2026 = {};
-  detail.forEach(r=>{
-    if(!r.dateObj || r.dateObj < activityCutoff) return;
-    const k = r.subService
+  // Only include columns that have activity (metric > 0) in the current filtered period
+  const allSvcKeys = [...new Set(detail.map(r=>
+    r.subService
       ? r.countryCode+'|'+r.service+'|'+r.subService
-      : r.countryCode+'|'+r.service;
-    billingSince2026[k] = (billingSince2026[k]||0) + (r.billings||0);
-  });
+      : r.countryCode+'|'+r.service
+  ))];
 
-  // Sort columns: active (billings>0 since 2026) first sorted by total billings desc,
-  // then inactive sorted alphabetically
-  const svcKeys = [...allSvcKeys].sort((a,b)=>{
-    const aActive = (billingSince2026[a]||0) > 0;
-    const bActive = (billingSince2026[b]||0) > 0;
-    if(aActive && !bActive) return -1;
-    if(!aActive && bActive) return 1;
-    if(aActive && bActive) return (billingSince2026[b]||0) - (billingSince2026[a]||0);
-    return String(svcLabelMap[a]||a).localeCompare(String(svcLabelMap[b]||b));
+  // Filter: only keys with at least one non-zero value in filtered data
+  const activeKeys = allSvcKeys.filter(k => (totBySvc[k]||0) > 0);
+
+  // Sort active keys by first date ascending (oldest service first = leftmost)
+  const svcKeys = [...activeKeys].sort((a,b)=>{
+    const da = firstDateBySvc[a] || '9999';
+    const db = firstDateBySvc[b] || '9999';
+    return da.localeCompare(db);
   });
   const svcLabels = svcKeys.map(k=>svcLabelMap[k]);
 
