@@ -1113,14 +1113,14 @@ function renderPivotTable(metric){
       svcLabelMap[key] = label;
     }
   });
-  const svcKeys   = [...new Set(detail.map(r=>
+  // Build all keys (unsorted first)
+  const allSvcKeys = [...new Set(detail.map(r=>
     r.subService
       ? r.countryCode+'|'+r.service+'|'+r.subService
       : r.countryCode+'|'+r.service
-  ))].sort();
-  const svcLabels = svcKeys.map(k=>svcLabelMap[k]);
+  ))];
 
-  // Build pivot data using the new keys
+  // Build pivot data first so we can compute activity totals for sorting
   const pivot = {};
   const totByDate = {};
   const totBySvc  = {};
@@ -1138,7 +1138,31 @@ function renderPivotTable(metric){
   });
   const grandTotal = Object.values(totByDate).reduce((a,v)=>a+v,0);
 
-  let pivotSortDir = 'asc';
+  // Compute billings per key since 2026-01-01 to determine "active" columns
+  const activityCutoff = new Date(2026, 0, 1); // 01/01/2026
+  const billingSince2026 = {};
+  detail.forEach(r=>{
+    if(!r.dateObj || r.dateObj < activityCutoff) return;
+    const k = r.subService
+      ? r.countryCode+'|'+r.service+'|'+r.subService
+      : r.countryCode+'|'+r.service;
+    billingSince2026[k] = (billingSince2026[k]||0) + (r.billings||0);
+  });
+
+  // Sort columns: active (billings>0 since 2026) first sorted by total billings desc,
+  // then inactive sorted alphabetically
+  const svcKeys = [...allSvcKeys].sort((a,b)=>{
+    const aActive = (billingSince2026[a]||0) > 0;
+    const bActive = (billingSince2026[b]||0) > 0;
+    if(aActive && !bActive) return -1;
+    if(!aActive && bActive) return 1;
+    if(aActive && bActive) return (billingSince2026[b]||0) - (billingSince2026[a]||0);
+    return String(svcLabelMap[a]||a).localeCompare(String(svcLabelMap[b]||b));
+  });
+  const svcLabels = svcKeys.map(k=>svcLabelMap[k]);
+
+  // Default sort: most recent first (desc)
+  let pivotSortDir = 'desc';
 
   // Populate the persistent toggle bar (outside pivotWrap, never regenerated)
   // Store service keys/labels globally so pivotUpdateButtons can always access them
@@ -1151,9 +1175,9 @@ function renderPivotTable(metric){
 
   // Build table HTML — toggle bar is external (id=pivotToggleBar in HTML)
   let html = `<table class="pivot-table"><thead><tr>`;
-  html += `<th onclick="togglePivotSort(this)" style="cursor:pointer">Date <span>↑</span></th>`;
-  svcKeys.forEach((k,i) => html += `<th data-col="${k}">${svcLabels[i]}</th>`);
-  html += '<th>TOTAL</th>';
+  html += `<th onclick="togglePivotSort(this)" style="cursor:pointer;color:#fff">Date <span>↓</span></th>`;
+  svcKeys.forEach((k,i) => html += `<th data-col="${k}" style="color:#fff">${svcLabels[i]}</th>`);
+  html += '<th style="color:#fff">TOTAL</th>';
   html += '</tr></thead><tbody id="pivotBody"></tbody></table>';
   pivotWrap.innerHTML = html;
 
@@ -1208,7 +1232,7 @@ function renderPivotTable(metric){
     renderPivotRows(pivotSortDir);
   };
 
-  renderPivotRows(pivotSortDir);
+  renderPivotRows(pivotSortDir); // starts desc (most recent first)
 }
 
 // ── EXPORT FUNCTIONS ──────────────────────────────────────────
