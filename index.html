@@ -6,6 +6,7 @@
 <title>Master Billing Report</title>
 <!-- v1774390298 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
   *{box-sizing:border-box;margin:0;padding:0}
@@ -1062,7 +1063,7 @@ function updateChart(){
 
   } else if(tab==='trend'){
     document.getElementById('cTitle').textContent='Daily billings trend';
-    wrap.style.height='300px';
+    wrap.style.height='320px';
     const bd={};
     detail.forEach(r=>{
       if(!r.dateObj) return;
@@ -1070,10 +1071,36 @@ function updateChart(){
       bd[k]=(bd[k]||0)+(r.billings||0);
     });
     const days=Object.keys(bd).sort();
+    const vals=days.map(d=>Math.round(bd[d]));
+    const maxV=Math.max(...vals), minV=Math.min(...vals);
     chart=new Chart(ctx,{type:'line',
-      data:{labels:days,datasets:[{data:days.map(d=>Math.round(bd[d])),borderColor:'#00B4D8',backgroundColor:'rgba(0,180,216,0.06)',borderWidth:2,pointRadius:days.length>60?0:3,pointBackgroundColor:'#00B4D8',tension:0.3,fill:true}]},
+      data:{labels:days,datasets:[{data:vals,borderColor:'#00B4D8',backgroundColor:'rgba(0,180,216,0.06)',borderWidth:2,pointRadius:days.length>60?0:3,pointBackgroundColor:'#00B4D8',tension:0.3,fill:true}]},
       options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{...tip,callbacks:{label:c=>' '+fmt(c.raw)}}},
+        plugins:{
+          legend:{display:false},
+          tooltip:{...tip,callbacks:{label:c=>' '+fmt(c.raw)}},
+          datalabels:{
+            display:(ctx)=>{
+              const v=ctx.dataset.data[ctx.dataIndex];
+              if(days.length<=14) return true;
+              return v===maxV||v===minV;
+            },
+            color:(ctx)=>ctx.dataset.data[ctx.dataIndex]===minV?'#E24B4A':'#00B4D8',
+            backgroundColor:'rgba(13,27,42,0.85)',
+            borderRadius:4,
+            padding:{top:3,bottom:3,left:5,right:5},
+            font:{size:10,family:"'IBM Plex Mono',monospace"},
+            formatter:(v,ctx)=>{
+              const label=ctx.chart.data.labels[ctx.dataIndex];
+              const parts=label.split('-');
+              const disp=parts.length===3?`${parts[2].slice(-2)}/${parts[1]}/${parts[2].slice(2)}`||label:label;
+              return fmt(v)+'\n'+label;
+            },
+            anchor:'end',
+            align:(ctx)=>ctx.dataset.data[ctx.dataIndex]===minV?'bottom':'top',
+            clamp:true,
+          }
+        },
         scales:{
           x:{grid:{color:'rgba(46,117,182,0.1)'},ticks:{color:'#5a7a9a',font:{size:10},maxTicksLimit:14},border:{display:false}},
           y:{grid:{color:'rgba(46,117,182,0.1)'},ticks:{color:'#5a7a9a',font:{size:11},callback:v=>fmt(v)},border:{display:false}}
@@ -1081,7 +1108,7 @@ function updateChart(){
 
   } else if(tab==='subs_trend'){
     document.getElementById('cTitle').textContent='Daily signups trend';
-    wrap.style.height='300px';
+    wrap.style.height='320px';
     const sd={};
     detail.forEach(r=>{
       if(!r.dateObj) return;
@@ -1090,10 +1117,34 @@ function updateChart(){
     });
     const days=Object.keys(sd).sort();
     if(!days.length){wrap.style.height='80px';return;}
+    const vals=days.map(d=>Math.round(sd[d]));
+    const maxV=Math.max(...vals), minV=Math.min(...vals);
     chart=new Chart(ctx,{type:'line',
-      data:{labels:days,datasets:[{data:days.map(d=>Math.round(sd[d])),borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.07)',borderWidth:2,pointRadius:days.length>60?0:3,pointBackgroundColor:'#1D9E75',tension:0.3,fill:true}]},
+      data:{labels:days,datasets:[{data:vals,borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.07)',borderWidth:2,pointRadius:days.length>60?0:3,pointBackgroundColor:'#1D9E75',tension:0.3,fill:true}]},
       options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{...tip,callbacks:{label:c=>' '+fmt(c.raw)}}},
+        plugins:{
+          legend:{display:false},
+          tooltip:{...tip,callbacks:{label:c=>' '+fmt(c.raw)}},
+          datalabels:{
+            display:(ctx)=>{
+              const v=ctx.dataset.data[ctx.dataIndex];
+              if(days.length<=14) return true;
+              return v===maxV||v===minV;
+            },
+            color:(ctx)=>ctx.dataset.data[ctx.dataIndex]===minV?'#E24B4A':'#1D9E75',
+            backgroundColor:'rgba(13,27,42,0.85)',
+            borderRadius:4,
+            padding:{top:3,bottom:3,left:5,right:5},
+            font:{size:10,family:"'IBM Plex Mono',monospace"},
+            formatter:(v,ctx)=>{
+              const label=ctx.chart.data.labels[ctx.dataIndex];
+              return fmt(v)+'\n'+label;
+            },
+            anchor:'end',
+            align:(ctx)=>ctx.dataset.data[ctx.dataIndex]===minV?'bottom':'top',
+            clamp:true,
+          }
+        },
         scales:{
           x:{grid:{color:'rgba(46,117,182,0.1)'},ticks:{color:'#5a7a9a',font:{size:10},maxTicksLimit:14},border:{display:false}},
           y:{grid:{color:'rgba(46,117,182,0.1)'},ticks:{color:'#5a7a9a',font:{size:11},callback:v=>fmt(v)},border:{display:false}}
