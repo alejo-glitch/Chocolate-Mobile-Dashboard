@@ -344,7 +344,7 @@
       <button class="tab active" onclick="setTab('bar',this)">Billings by service</button>
       <button class="tab" onclick="setTab('signup',this)">Signups by service</button>
       <button class="tab" onclick="setTab('trend',this)">Daily trend</button>
-      <button class="tab" onclick="setTab('subs_trend',this)">Subs trend</button>
+      <button class="tab" onclick="setTab('subs_trend',this)">Signups trend</button>
       <button class="tab" onclick="setTab('donut',this)">Active subs</button>
       <button class="tab" onclick="setTab('pivot_signups',this)">Signups table</button>
       <button class="tab" onclick="setTab('pivot_billings',this)">Billings table</button>
@@ -587,6 +587,23 @@ const MARKET_MAP = {
       "Video":        "Games Unlimited",
       "Intelligence": "Intelligence",
       "TOTAL":        "__TOTAL__"
+    }
+  },
+  // ── SWITZERLAND ──
+  "CH_NTH": {
+    country:     "Switzerland",
+    countryCode: "CH",
+    aggregator:  "NTH",
+    operator:    "All",
+    serviceMap: {
+      "5.00":  "Games",
+      "10.00": "Games",
+      "TOTAL": "__TOTAL__"
+    },
+    subServiceMap: {
+      "5.00":  "5.00",
+      "10.00": "10.00",
+      "TOTAL": "__TOTAL__"
     }
   },
   // ── MEXICO ──
@@ -1063,37 +1080,18 @@ function updateChart(){
         }}});
 
   } else if(tab==='subs_trend'){
-    document.getElementById('cTitle').textContent='Daily active subscribers trend';
+    document.getElementById('cTitle').textContent='Daily signups trend';
     wrap.style.height='300px';
-    // Build per-service active subs time series
-    // For each date, use TOTAL row if available per market, else sum detail rows
-    const byDate={};
-    // Group by date → market → rows
-    const mktDateMap={};
-    filtered.forEach(r=>{
+    const sd={};
+    detail.forEach(r=>{
       if(!r.dateObj) return;
       const k=fiso(r.dateObj);
-      if(!mktDateMap[k]) mktDateMap[k]={};
-      if(!mktDateMap[k][r.marketId]) mktDateMap[k][r.marketId]={tot:null,subs:[]};
-      if(isTotal(r)){
-        if(r.active!==null&&!isNaN(r.active)) mktDateMap[k][r.marketId].tot=r.active;
-      } else {
-        if(r.active!==null&&!isNaN(r.active)) mktDateMap[k][r.marketId].subs.push(r.active);
-      }
+      sd[k]=(sd[k]||0)+(r.signups||0);
     });
-    // Collapse: prefer TOTAL per market, fall back to sum of details
-    Object.keys(mktDateMap).forEach(d=>{
-      let sum=0;
-      Object.values(mktDateMap[d]).forEach(m=>{
-        if(m.tot!==null) sum+=m.tot;
-        else if(m.subs.length) sum+=m.subs.reduce((a,v)=>a+v,0);
-      });
-      byDate[d]=sum;
-    });
-    const days=Object.keys(byDate).sort();
+    const days=Object.keys(sd).sort();
     if(!days.length){wrap.style.height='80px';return;}
     chart=new Chart(ctx,{type:'line',
-      data:{labels:days,datasets:[{data:days.map(d=>Math.round(byDate[d])),borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.07)',borderWidth:2,pointRadius:days.length>60?0:3,pointBackgroundColor:'#1D9E75',tension:0.3,fill:true}]},
+      data:{labels:days,datasets:[{data:days.map(d=>Math.round(sd[d])),borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.07)',borderWidth:2,pointRadius:days.length>60?0:3,pointBackgroundColor:'#1D9E75',tension:0.3,fill:true}]},
       options:{responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:false},tooltip:{...tip,callbacks:{label:c=>' '+fmt(c.raw)}}},
         scales:{
