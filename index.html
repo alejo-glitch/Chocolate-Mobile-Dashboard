@@ -239,7 +239,12 @@
     </div>
     <div class="login-field">
       <label>Contraseña</label>
-      <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password">
+      <div style="position:relative">
+        <input type="password" id="loginPass" placeholder="Contraseña" autocomplete="current-password" style="padding-right:38px;width:100%">
+        <button type="button" onclick="togglePassVis()" id="eyeBtn" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:0;color:var(--text3);display:flex;align-items:center" tabindex="-1">
+          <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
     </div>
     <div class="login-error" id="loginError">Usuario o contraseña incorrectos</div>
     <button class="login-btn" onclick="doLogin()">Ingresar</button>
@@ -603,6 +608,22 @@ let sortCol='date', sortDir='desc';
 const hiddenColsGlobal = new Set();
 let pivotSvcKeys = [];
 let pivotSvcLabels = [];
+
+function recalcPivotTotals(){
+  const pivotBody = document.getElementById('pivotBody');
+  if(!pivotBody) return;
+  pivotBody.querySelectorAll('tr').forEach(tr=>{
+    const totalCell = tr.querySelector('td.row-total-cell');
+    if(!totalCell) return;
+    let sum = 0;
+    tr.querySelectorAll('td[data-col]').forEach(td=>{
+      if(!hiddenColsGlobal.has(td.getAttribute('data-col'))){
+        sum += parseFloat(td.textContent.replace(/,/g,''))||0;
+      }
+    });
+    totalCell.textContent = Math.round(sum).toLocaleString();
+  });
+}
 
 function pivotUpdateButtons(){
   const bar = document.getElementById('pivotToggleBar');
@@ -1216,23 +1237,6 @@ function renderPivotTable(metric){
 
   pivotUpdateStyles();
 
-  function recalcPivotTotals(){
-    // Recalculate all row totals and grand total based on currently visible columns
-    const pivotBody = document.getElementById('pivotBody');
-    if(!pivotBody) return;
-    pivotBody.querySelectorAll('tr').forEach(tr=>{
-      const totalCell = tr.querySelector('td.row-total-cell');
-      if(!totalCell) return;
-      let sum = 0;
-      tr.querySelectorAll('td[data-col]').forEach(td=>{
-        if(!hiddenColsGlobal.has(td.getAttribute('data-col'))){
-          sum += parseFloat(td.textContent.replace(/,/g,''))||0;
-        }
-      });
-      totalCell.textContent = Math.round(sum).toLocaleString();
-    });
-  }
-
   function renderPivotRows(dir){
     const orderedDates = dir==='asc' ? [...dates] : [...dates].reverse();
     let rows = '';
@@ -1483,6 +1487,16 @@ const AUTH_USER = '7499aced43869b27f505701e4edc737f0cc346add1240d4ba86fbfa251e0f
 const AUTH_PASS = 'f4186692e7f065b846bbb03ebeb436e7028146b09390bc667a77db957b68c57c';
 const SESSION_HOURS = 8;
 const SESSION_KEY = 'mbr_session';
+
+function togglePassVis(){
+  const inp = document.getElementById('loginPass');
+  const icon = document.getElementById('eyeIcon');
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  icon.innerHTML = show
+    ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>'
+    : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+}
 
 async function sha256(str){
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
