@@ -1210,15 +1210,20 @@ function renderPivotTable(metric){
     }
   }
 
+  // Markets donde los signups son compartidos entre sub-services
+  // (no deben desglosarse por sub-service en la columna de signups)
+  const SHARED_SIGNUPS_MARKETS = new Set(['CH_NTH']);
+
   // Build column keys: use subService if available, else service
-  // Key format: "CC|service|subService" or "CC|service" if no subService
+  // For signups metric + markets with shared signups: use service-level key only
   const svcLabelMap = {};
   detail.forEach(r=>{
-    const key = r.subService
+    const useSubKey = r.subService && !(metric==='signups' && SHARED_SIGNUPS_MARKETS.has(r.marketId));
+    const key = useSubKey
       ? r.countryCode+'|'+r.service+'|'+r.subService
       : r.countryCode+'|'+r.service;
     if(!svcLabelMap[key]){
-      const label = r.subService
+      const label = useSubKey
         ? (r.countryCode+'_'+r.service+'_'+r.subService)
         : (r.countryCode ? r.countryCode+'_' : '')+r.service;
       svcLabelMap[key] = label;
@@ -1228,30 +1233,37 @@ function renderPivotTable(metric){
   const pivot = {};
   const totByDate = {};
   const totBySvc  = {};
-  // Also track first date seen per key (for sorting by service age)
+  const seenSignups = {}; // para evitar duplicar signups en markets con shared signups
   const firstDateBySvc = {};
   detail.forEach(r=>{
     if(!r.dateObj) return;
     const d = fiso(r.dateObj);
-    const k = r.subService
+    const useSubKey = r.subService && !(metric==='signups' && SHARED_SIGNUPS_MARKETS.has(r.marketId));
+    const k = useSubKey
       ? r.countryCode+'|'+r.service+'|'+r.subService
       : r.countryCode+'|'+r.service;
-    const v = r[metric] || 0;
+    let v = r[metric] || 0;
+    // Para signups en markets con shared signups: contar solo una vez por fecha+service
+    if(metric==='signups' && SHARED_SIGNUPS_MARKETS.has(r.marketId)){
+      const seenKey = d+'|'+k;
+      if(seenSignups[seenKey]) v = 0; // ya contado
+      else seenSignups[seenKey] = true;
+    }
     if(!pivot[d]) pivot[d]={};
     pivot[d][k] = (pivot[d][k]||0) + v;
     totByDate[d] = (totByDate[d]||0) + v;
     totBySvc[k]  = (totBySvc[k]||0)  + v;
-    // Track earliest date for each service (across ALL data, not just filtered)
     if(!firstDateBySvc[k] || d < firstDateBySvc[k]) firstDateBySvc[k] = d;
   });
   const grandTotal = Object.values(totByDate).reduce((a,v)=>a+v,0);
 
   // Only include columns that have activity (metric > 0) in the current filtered period
-  const allSvcKeys = [...new Set(detail.map(r=>
-    r.subService
+  const allSvcKeys = [...new Set(detail.map(r=>{
+    const useSubKey = r.subService && !(metric==='signups' && SHARED_SIGNUPS_MARKETS.has(r.marketId));
+    return useSubKey
       ? r.countryCode+'|'+r.service+'|'+r.subService
-      : r.countryCode+'|'+r.service
-  ))];
+      : r.countryCode+'|'+r.service;
+  }))];
 
   // Filter: only keys with at least one non-zero value in filtered data
   const activeKeys = allSvcKeys.filter(k => (totBySvc[k]||0) > 0);
