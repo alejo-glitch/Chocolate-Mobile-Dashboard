@@ -404,7 +404,7 @@
 <script>
 'use strict';
 
-const API = "https://script.google.com/macros/s/AKfycbwcQotV3nt2-CTEv8dTXdbxXydYNsimSPbks4Zc8gyxlbjbrTV75RYOAYxSci8QnH49/exec";
+const API = "https://script.google.com/macros/s/AKfycbyJqnrqu2l76UztdiHbNQu7S2mlQseWQWZsfCq7ZYJsSKvNlcAgZNWvbxYKyftSQmDY/exec";
 const CLR = ["#00B4D8","#1D9E75","#7F77DD","#E24B4A","#BA7517","#D4537E","#639922","#2E75B6","#D85A30","#0F6E56","#854F0B","#378ADD"];
 const PS  = 100;
 
@@ -734,12 +734,12 @@ async function loadData() {
     const hi = {
       date:     headers.indexOf('date'),
       country:  headers.indexOf('country'),
-      market:   headers.indexOf('market_id'),
-      service:  headers.indexOf('service'),        // e.g. "Dialogue"
-      sub:      headers.findIndex(h=>h==='sub-service'||h==='sub_service'), // e.g. "8995"
-      signups:  headers.indexOf('signups'),
+      market:   headers.findIndex(h=>h==='market_id'||h==='market id'),
+      service:  headers.indexOf('service'),
+      sub:      headers.findIndex(h=>h==='sub-service'||h==='sub_service'||h==='subservice'),
+      signups:  headers.findIndex(h=>h==='signups'||h==='new subscribers'),
       billings: headers.indexOf('billings'),
-      active:   headers.findIndex(h=>h==='active_subs'||h==='active subs'),
+      active:   headers.findIndex(h=>h==='active_subs'||h==='active subs'||h==='active subscribers'),
     };
 
     const g = (row,idx) => (idx>=0&&idx<row.length) ? row[idx] : '';
