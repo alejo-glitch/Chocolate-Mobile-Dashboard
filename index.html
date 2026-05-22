@@ -306,6 +306,7 @@
       <button class="preset" onclick="setPreset('yesterday',this)">Yesterday</button>
       <button class="preset" onclick="setPreset('7d',this)">Last 7 days</button>
       <button class="preset" onclick="setPreset('30d',this)">Last 30 days</button>
+      <button class="preset" onclick="setPreset('60d',this)">Last 60 days</button>
       <button class="preset" onclick="setPreset('thismonth',this)">This month</button>
       <button class="preset" onclick="setPreset('lastmonth',this)">Last month</button>
       <button class="preset" onclick="setPreset('custom',this)">Custom</button>
@@ -840,6 +841,7 @@ function getRange(){
   if(preset==='yesterday') {const y=new Date(n);y.setDate(y.getDate()-1);return{f:sod(y),t:eod(y)};}
   if(preset==='7d')        {const f=new Date(n);f.setDate(f.getDate()-6);return{f:sod(f),t:eod(n)};}
   if(preset==='30d')       {const f=new Date(n);f.setDate(f.getDate()-29);return{f:sod(f),t:eod(n)};}
+  if(preset==='60d')       {const f=new Date(n);f.setDate(f.getDate()-59);return{f:sod(f),t:eod(n)};}
   if(preset==='thismonth') return{f:sod(new Date(n.getFullYear(),n.getMonth(),1)),t:eod(n)};
   if(preset==='lastmonth') return{f:sod(new Date(n.getFullYear(),n.getMonth()-1,1)),t:eod(new Date(n.getFullYear(),n.getMonth(),0))};
   if(preset==='custom')    return{f:cFrom?sod(cFrom):null,t:cTo?eod(cTo):null};
